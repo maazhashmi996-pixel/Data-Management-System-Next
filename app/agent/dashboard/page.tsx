@@ -12,11 +12,12 @@ import {
     TrendingUp,
     FileText,
     Printer,
-    X
+    X,
+    Search
 } from 'lucide-react';
 import axios from 'axios';
 import { useReactToPrint } from 'react-to-print';
-import AdmissionForm from '../../../Components/AdmissionForm'; // Make sure path is correct
+import AdmissionForm from '@/Components/AdmissionForm';
 
 export default function AgentDashboard() {
     const router = useRouter();
@@ -25,6 +26,7 @@ export default function AgentDashboard() {
     const [agentName, setAgentName] = useState("Agent");
     const [stats, setStats] = useState({ total: 0, thisMonth: 0 });
     const [recentForms, setRecentForms] = useState([]);
+    const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
 
     // Modal State for View/Print
@@ -60,6 +62,7 @@ export default function AgentDashboard() {
 
     // Print Logic
     const handlePrint = useReactToPrint({
+        // @ts-ignore
         contentRef: componentRef,
         documentTitle: selectedStudent ? `Form_${selectedStudent.studentName}` : 'Student_Form',
     });
@@ -67,20 +70,25 @@ export default function AgentDashboard() {
     const openStudentDetails = async (formId: string) => {
         try {
             const token = localStorage.getItem('token');
-            // Hum detail API se poora data mangwayein ge (Qualification/OfficeUse ke liye)
+            // Fetching all forms to find the specific one with full details
             const res = await axios.get(`http://localhost:5000/api/agent/my-forms`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const student = res.data.data.find((f: any) => f._id === formId);
-            setSelectedStudent(student);
-            setIsModalOpen(true);
+            if (student) {
+                setSelectedStudent(student);
+                setIsModalOpen(true);
+            } else {
+                alert("Student details not found");
+            }
         } catch (err) {
             alert("Error fetching student details");
         }
     };
 
+    // Fixed 404 by ensuring correct path and encoding
     const handleSelectForm = (type: string) => {
-        router.push(`/agent/create-form?type=${encodeURIComponent(type)}`);
+        router.push(`/agent/new-form?type=${encodeURIComponent(type)}`);
     };
 
     const handleLogout = () => {
@@ -90,133 +98,164 @@ export default function AgentDashboard() {
         }
     };
 
+    // Filter forms based on search
+    const filteredForms = recentForms.filter((f: any) =>
+        f.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        f.regNo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
     return (
-        <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row relative">
+        <div className="min-h-screen bg-[#f8fafc] flex flex-col relative overflow-x-hidden font-sans">
 
-            {/* --- Main Content Area --- */}
-            <main className="flex-1 p-4 md:p-10">
-
-                {/* 1. Top Bar */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-200">
-                            <UserIcon size={30} />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-none uppercase">
-                                Welcome, {agentName}
-                            </h1>
-                            <p className="text-slate-500 text-sm mt-1 font-medium italic">Agent Enrollment Portal</p>
-                        </div>
+            {/* --- TOP NAVIGATION BAR --- */}
+            <nav className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-100">
+                        EZ
                     </div>
+                    <span className="font-black text-slate-800 tracking-tighter uppercase hidden md:block">Enrollment Portal</span>
+                </div>
 
+                <div className="flex items-center gap-4">
+                    <div className="text-right hidden sm:block">
+                        <p className="text-[10px] font-black text-slate-400 uppercase leading-none">Logged in as</p>
+                        <p className="text-sm font-bold text-slate-800 uppercase tracking-tight">{agentName}</p>
+                    </div>
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 bg-red-50 text-red-600 px-5 py-3 rounded-2xl font-bold hover:bg-red-100 transition-all border border-red-100"
+                        className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        title="Logout"
                     >
-                        <LogOut size={18} /> Logout System
+                        <LogOut size={20} />
                     </button>
                 </div>
+            </nav>
 
-                {/* 2. Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-5">
-                        <div className="p-4 bg-orange-100 text-orange-600 rounded-2xl">
-                            <FileText size={24} />
-                        </div>
-                        <div>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Forms</p>
-                            <p className="text-2xl font-black text-slate-800">{stats.total}</p>
-                        </div>
-                    </div>
+            <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
 
-                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex items-center gap-5">
-                        <div className="p-4 bg-blue-100 text-blue-600 rounded-2xl">
-                            <TrendingUp size={24} />
+                {/* 1. Dashboard Welcome & Stats */}
+                <div className="mb-10">
+                    <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase mb-6">Dashboard Summary</h1>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow">
+                            <div className="w-14 h-14 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center">
+                                <FileText size={28} />
+                            </div>
+                            <div>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Enrollments</p>
+                                <p className="text-3xl font-black text-slate-900">{stats.total}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">This Month</p>
-                            <p className="text-2xl font-black text-slate-800">{stats.thisMonth}</p>
-                        </div>
-                    </div>
 
-                    <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 rounded-[2rem] shadow-xl text-white flex items-center gap-5">
-                        <div className="p-4 bg-white/10 rounded-2xl">
-                            <Clock size={24} />
+                        <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5 hover:shadow-md transition-shadow">
+                            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                                <TrendingUp size={28} />
+                            </div>
+                            <div>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mb-1">New This Month</p>
+                                <p className="text-3xl font-black text-slate-900">{stats.thisMonth}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">System Status</p>
-                            <p className="text-lg font-bold text-green-400">Online & Secure</p>
+
+                        <div className="bg-slate-900 p-6 rounded-[2rem] shadow-xl text-white flex items-center gap-5">
+                            <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center">
+                                <Clock size={28} className="text-blue-400" />
+                            </div>
+                            <div>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest leading-none mb-1">System Status</p>
+                                <p className="text-xl font-bold text-emerald-400 tracking-tight">Active & Sync</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-                    {/* 3. Create New Buttons */}
-                    <div className="space-y-6">
-                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-tight">
-                            <Plus className="text-blue-600" /> Create New Enrollment
-                        </h2>
-                        <div className="grid grid-cols-1 gap-4">
-                            <button onClick={() => handleSelectForm('Education Zone')} className="group bg-white p-6 rounded-3xl shadow-sm border-l-[6px] border-orange-500 hover:shadow-xl transition-all flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-orange-50 text-orange-500 rounded-2xl group-hover:bg-orange-500 group-hover:text-white transition-all">
-                                        <School size={32} />
-                                    </div>
-                                    <div className="text-left">
-                                        <h3 className="font-black text-lg text-slate-800 uppercase">Education Zone</h3>
-                                        <p className="text-xs text-slate-500 italic">Open Enrollment Form</p>
-                                    </div>
+                    {/* 2. Form Selection (Left Side) */}
+                    <div className="lg:col-span-4 space-y-6">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Plus size={20} className="text-blue-600" />
+                            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">New Entry</h2>
+                        </div>
+
+                        <div onClick={() => handleSelectForm('Education Zone')} className="group cursor-pointer bg-white p-6 rounded-[2rem] border-l-[8px] border-orange-500 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 bg-orange-50 text-orange-500 rounded-3xl flex items-center justify-center group-hover:bg-orange-500 group-hover:text-white transition-all">
+                                    <School size={36} />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-black text-xl text-slate-800 uppercase tracking-tighter">Education Zone</h3>
+                                    <p className="text-xs text-slate-500 font-medium italic mt-1 leading-tight">Secondary & Higher Secondary</p>
                                 </div>
                                 <ChevronRight className="text-slate-300 group-hover:text-orange-500" />
-                            </button>
+                            </div>
+                        </div>
 
-                            <button onClick={() => handleSelectForm('DIB Education System')} className="group bg-white p-6 rounded-3xl shadow-sm border-l-[6px] border-blue-600 hover:shadow-xl transition-all flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                        <GraduationCap size={32} />
-                                    </div>
-                                    <div className="text-left">
-                                        <h3 className="font-black text-lg text-slate-800 uppercase">DIB Education</h3>
-                                        <p className="text-xs text-slate-500 italic">Technical Admission Form</p>
-                                    </div>
+                        <div onClick={() => handleSelectForm('DIB Education System')} className="group cursor-pointer bg-white p-6 rounded-[2rem] border-l-[8px] border-indigo-700 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all">
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 bg-indigo-50 text-indigo-700 rounded-3xl flex items-center justify-center group-hover:bg-indigo-700 group-hover:text-white transition-all">
+                                    <GraduationCap size={36} />
                                 </div>
-                                <ChevronRight className="text-slate-300 group-hover:text-blue-600" />
-                            </button>
+                                <div className="flex-1">
+                                    <h3 className="font-black text-xl text-slate-800 uppercase tracking-tighter">DIB Education</h3>
+                                    <p className="text-xs text-slate-500 font-medium italic mt-1 leading-tight">Technical & Professional Certs</p>
+                                </div>
+                                <ChevronRight className="text-slate-300 group-hover:text-indigo-700" />
+                            </div>
                         </div>
                     </div>
 
-                    {/* 4. Recent Activity List */}
-                    <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
-                        <h2 className="font-black text-slate-800 text-lg uppercase mb-6 tracking-tight">Recent Activity</h2>
-                        <div className="space-y-4">
-                            {recentForms.length > 0 ? (
-                                recentForms.map((form: any) => (
-                                    <div
-                                        key={form._id}
-                                        onClick={() => openStudentDetails(form._id)}
-                                        className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl hover:bg-blue-50 transition-all cursor-pointer group"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-3 h-3 rounded-full ${form.formType.includes('Zone') ? 'bg-orange-500' : 'bg-blue-500'}`} />
-                                            <div>
-                                                <p className="font-bold text-sm text-slate-800">{form.studentName}</p>
-                                                <p className="text-[10px] text-slate-500 uppercase font-black">{form.course}</p>
+                    {/* 3. Recent Activity (Right Side) */}
+                    <div className="lg:col-span-8">
+                        <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
+                            <div className="p-8 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                                <h2 className="font-black text-slate-800 text-xl uppercase tracking-tight">Recent Activity</h2>
+                                <div className="relative w-full sm:w-64">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by name..."
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-blue-500 transition-all focus:bg-white"
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
+                                {loading ? (
+                                    <div className="py-20 text-center text-slate-400 font-bold animate-pulse">Fetching records...</div>
+                                ) : filteredForms.length > 0 ? (
+                                    filteredForms.map((form: any) => (
+                                        <div
+                                            key={form._id}
+                                            onClick={() => openStudentDetails(form._id)}
+                                            className="flex items-center justify-between p-5 bg-slate-50/50 rounded-3xl hover:bg-white hover:shadow-lg hover:border-blue-100 border border-transparent transition-all cursor-pointer group"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-3 h-12 rounded-full ${form.formType.includes('Zone') ? 'bg-orange-400' : 'bg-indigo-600'}`} />
+                                                <div>
+                                                    <p className="font-black text-slate-800 text-lg uppercase tracking-tight leading-none mb-1">{form.studentName}</p>
+                                                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{form.course}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-6">
+                                                <div className="text-right hidden sm:block">
+                                                    <p className="text-[10px] font-black text-blue-600 uppercase tracking-tighter">{form.regNo}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400">{form.date || 'Today'}</p>
+                                                </div>
+                                                <div className="p-3 bg-white text-slate-400 group-hover:text-blue-600 group-hover:bg-blue-50 rounded-2xl transition-all shadow-sm">
+                                                    <Printer size={20} />
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="text-right flex items-center gap-4">
-                                            <div>
-                                                <p className="text-[10px] font-bold text-slate-400">{form.date}</p>
-                                                <p className="text-[9px] font-black text-blue-600 uppercase">{form.regNo}</p>
-                                            </div>
-                                            <Printer size={16} className="text-slate-300 group-hover:text-blue-600 transition-colors" />
-                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="py-20 text-center">
+                                        <FileText size={40} className="mx-auto text-slate-200 mb-2" />
+                                        <p className="text-slate-400 font-bold italic">No records found matching your search.</p>
                                     </div>
-                                ))
-                            ) : (
-                                <p className="text-center text-slate-400 italic py-10">No records found.</p>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -224,41 +263,59 @@ export default function AgentDashboard() {
 
             {/* --- 5. VIEW & PRINT MODAL --- */}
             {isModalOpen && selectedStudent && (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-slate-100 w-full max-w-5xl h-[90vh] rounded-[2rem] overflow-hidden flex flex-col shadow-2xl">
+                <div className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-slate-200 w-full max-w-5xl h-[95vh] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl relative border-4 border-white/20">
+
                         {/* Modal Header */}
-                        <div className="bg-white p-6 flex justify-between items-center border-b shadow-sm">
-                            <div>
-                                <h2 className="text-xl font-black text-slate-800 uppercase tracking-tighter">
-                                    Form Preview: {selectedStudent.studentName}
-                                </h2>
-                                <p className="text-xs text-slate-500 font-bold">Reg No: {selectedStudent.regNo}</p>
+                        <div className="bg-white px-8 py-6 flex justify-between items-center shadow-lg relative z-10">
+                            <div className="flex items-center gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-lg ${selectedStudent.formType.includes('Zone') ? 'bg-orange-500' : 'bg-indigo-800'}`}>
+                                    {selectedStudent.formType.includes('Zone') ? 'EZ' : 'DIB'}
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tighter leading-none">
+                                        Admission Form Preview
+                                    </h2>
+                                    <p className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mt-1">
+                                        Student ID: <span className="text-blue-600">{selectedStudent.regNo}</span>
+                                    </p>
+                                </div>
                             </div>
-                            <div className="flex gap-3">
+
+                            <div className="flex items-center gap-3">
                                 <button
                                     onClick={handlePrint}
-                                    className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-all"
+                                    className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black flex items-center gap-2 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 uppercase text-xs tracking-widest"
                                 >
-                                    <Printer size={18} /> Print Form
+                                    <Printer size={18} /> Print Now
                                 </button>
                                 <button
                                     onClick={() => setIsModalOpen(false)}
-                                    className="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-red-50 hover:text-red-600 transition-all"
+                                    className="p-3 bg-slate-100 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all"
                                 >
                                     <X size={24} />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Modal Body (Scrollable Form) */}
-                        <div className="flex-1 overflow-y-auto p-10 bg-slate-200/50">
-                            <div className="shadow-2xl mx-auto">
-                                <AdmissionForm
-                                    ref={componentRef}
-                                    data={selectedStudent}
-                                    type={selectedStudent.formType}
-                                />
+                        {/* Modal Body (Scrollable Preview Area) */}
+                        <div className="flex-1 overflow-y-auto p-8 md:p-12 bg-slate-300/40">
+                            <div className="scale-[0.85] origin-top md:scale-100 mb-20">
+                                <div className="bg-white shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] mx-auto rounded-sm overflow-hidden">
+                                    <AdmissionForm
+                                        ref={componentRef}
+                                        data={selectedStudent}
+                                        type={selectedStudent.formType}
+                                    />
+                                </div>
                             </div>
+                        </div>
+
+                        {/* Modal Footer (Floating Info) */}
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-md px-6 py-3 rounded-full border border-white shadow-xl flex gap-6 text-[10px] font-black uppercase text-slate-500 tracking-tighter">
+                            <span>Name: {selectedStudent.studentName}</span>
+                            <span className="text-blue-600 underline">Course: {selectedStudent.course}</span>
+                            <span>Status: Verified</span>
                         </div>
                     </div>
                 </div>
