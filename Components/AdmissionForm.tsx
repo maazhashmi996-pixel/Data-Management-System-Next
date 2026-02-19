@@ -1,3 +1,4 @@
+"use client";
 import React, { forwardRef } from 'react';
 
 interface FormProps {
@@ -6,95 +7,171 @@ interface FormProps {
 }
 
 const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref) => {
-    return (
-        <div ref={ref} className="p-10 bg-white text-black w-[210mm] min-h-[297mm] mx-auto border shadow-lg font-serif relative overflow-hidden text-sm">
+    const isEZ = type === 'Education Zone';
+    const primaryColor = isEZ ? 'text-orange-600' : 'text-indigo-700';
+    const borderColor = isEZ ? 'border-orange-600' : 'border-indigo-700';
+    const bgColor = isEZ ? 'bg-orange-600' : 'bg-indigo-700';
 
-            {/* Header Section */}
-            <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+    // Helper function for data mapping
+    const getVal = (path: string, fallback: string) => {
+        const value = path.split('.').reduce((obj, key) => obj?.[key], data);
+        return value || data[fallback] || '________________';
+    };
+
+    return (
+        <div ref={ref} className="p-10 bg-white text-black w-[210mm] mx-auto font-sans relative overflow-hidden text-[12px] print:p-6 print:w-full">
+
+            {/* --- TOP HEADER --- */}
+            <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-4">
-                    <div className="w-20 h-20 bg-gray-200 flex items-center justify-center font-bold border border-black">
-                        LOGO
+                    <div className={`w-20 h-20 ${bgColor} rounded-lg flex items-center justify-center text-white font-black text-2xl`}>
+                        {isEZ ? 'EZ' : 'DIB'}
                     </div>
                     <div>
-                        <h1 className="text-3xl font-extrabold tracking-tighter uppercase">{type}</h1>
-                        <p className="text-xs font-bold">Contact: 0326-0804049</p>
-                        <p className="text-sm font-bold mt-2 text-orange-600">Course: <span className="border-b border-black min-w-[100px] inline-block">{data.course}</span></p>
-                        <p className="text-sm font-bold text-orange-600">Duration: <span className="border-b border-black min-w-[100px] inline-block">{data.duration}</span></p>
+                        <h1 className={`text-4xl font-black tracking-tighter uppercase ${primaryColor}`}>
+                            {type}
+                        </h1>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest leading-none">
+                            Registered & Recognized Technical Education System
+                        </p>
                     </div>
                 </div>
-                <div className="text-[10px] leading-tight text-right">
-                    <p>NTN# ________________</p>
-                    <p className="font-bold">Address 1:</p>
-                    <p>Office # 2,3, First Floor Midland Plaza Near Defence Mor Lahore.</p>
-                    <p className="font-bold mt-1">Address 2:</p>
-                    <p>275-1-3 Ghazni Lane Super Town Lahore.</p>
+                <div className="text-[11px] text-right font-bold">
+                    <p className="text-lg">Ph: 0326-0804049</p>
+                    <p className="text-blue-600 underline">Admission Enrollment Office</p>
+                    <p className="mt-1 text-[9px] text-gray-600 leading-tight">
+                        MAIN CAMPUS: Office # 2,3, 1st Floor Midland Plaza, Defence Mor, Lahore.
+                    </p>
                 </div>
             </div>
 
-            {/* Title */}
-            <div className="text-center my-4">
-                <h2 className="text-2xl font-bold underline decoration-double">Admission Form</h2>
-                <p className="text-right text-xs">Date: <span className="border-b border-black px-4">{data.date}</span></p>
+            {/* --- COURSE INFO --- */}
+            <div className="flex gap-10 mb-6 font-bold text-sm border-b-2 border-gray-100 pb-4">
+                <p>Course: <span className="border-b-2 border-black px-4 ml-2">{getVal('course', 'course')}</span></p>
+                <p>Duration: <span className="border-b-2 border-black px-4 ml-2">{getVal('duration', 'duration')}</span></p>
             </div>
 
-            {/* Form Fields */}
-            <div className="grid grid-cols-2 gap-y-4 gap-x-8 mt-6">
-                <p className="flex gap-2"><b>Name:</b> <span className="border-b border-dotted border-black flex-1">{data.studentName}</span></p>
-                <p className="flex gap-2"><b>Father's Name:</b> <span className="border-b border-dotted border-black flex-1">{data.fatherName}</span></p>
-                <p className="flex gap-2"><b>CNIC:</b> <span className="border-b border-dotted border-black flex-1">{data.cnic}</span></p>
-                <p className="flex gap-2"><b>Mobile No:</b> <span className="border-b border-dotted border-black flex-1">{data.mobileNo}</span></p>
-                <p className="flex gap-2"><b>Address:</b> <span className="border-b border-dotted border-black flex-1">{data.address}</span></p>
-                <p className="flex gap-2"><b>E-mail Address:</b> <span className="border-b border-dotted border-black flex-1">{data.email}</span></p>
+            {/* --- ADMISSION FORM TITLE BAR --- */}
+            <div className="flex items-center gap-0 mb-8">
+                <div className="border-2 border-black px-4 py-2 font-black text-lg min-w-[150px] text-center">
+                    REG NO: {getVal('regNo', 'regNo')}
+                </div>
+                <div className={`flex-1 ${bgColor} text-white text-center py-2 text-2xl font-black tracking-[0.3em] uppercase`}>
+                    Admission Form
+                </div>
+                <div className="border-2 border-black border-l-0 px-4 py-2 font-black text-lg min-w-[150px] text-center">
+                    {data.date || new Date().toLocaleDateString('en-GB')}
+                </div>
             </div>
 
-            {/* Qualifications Table */}
+            {/* --- PERSONAL INFO SECTION --- */}
+            <div className="space-y-5 uppercase font-bold">
+                <div className="flex items-end gap-4">
+                    <span className="w-40 text-[11px]">Full Name of Student:</span>
+                    <span className="flex-1 border-b border-black text-lg font-black pb-1">{getVal('studentName', 'studentName')}</span>
+                </div>
+                <div className="flex items-end gap-4">
+                    <span className="w-40 text-[11px]">Father's Name:</span>
+                    <span className="flex-1 border-b border-black pb-1">{getVal('fatherName', 'fatherName')}</span>
+                </div>
+                <div className="flex gap-10">
+                    <div className="flex-1 flex items-end gap-4">
+                        <span className="w-40 text-[11px]">CNIC / B-Form:</span>
+                        <span className="flex-1 border-b border-black pb-1 tracking-[4px] font-mono">{getVal('cnic', 'cnic')}</span>
+                    </div>
+                    <div className="flex-1 flex items-end gap-4">
+                        <span className="w-24 text-[11px]">Mobile No:</span>
+                        <span className="flex-1 border-b border-black pb-1 font-mono">{getVal('mobileNo', 'mobileNo')}</span>
+                    </div>
+                </div>
+                <div className="flex items-end gap-4">
+                    <span className="w-40 text-[11px]">Residential Address:</span>
+                    <span className="flex-1 border-b border-black pb-1 italic font-normal normal-case">{getVal('address', 'address')}</span>
+                </div>
+                <div className="flex items-end gap-4">
+                    <span className="w-40 text-[11px]">Email Address:</span>
+                    <span className="flex-1 border-b border-black pb-1 font-normal normal-case">{getVal('email', 'email') || 'N/A'}</span>
+                </div>
+            </div>
+
+            {/* --- QUALIFICATIONS --- */}
             <div className="mt-8">
-                <h3 className="font-bold uppercase mb-2 underline">Qualifications:</h3>
-                <table className="w-full border-collapse border border-black text-center">
-                    <thead>
-                        <tr className="bg-gray-100">
-                            <th className="border border-black p-2">Matric / O-Level</th>
-                            <th className="border border-black p-2">Marks</th>
+                <div className="flex items-center gap-2 mb-3">
+                    <div className={`w-5 h-5 ${bgColor} text-white flex items-center justify-center text-[10px]`}>✓</div>
+                    <h3 className={`font-black uppercase ${primaryColor}`}>Academic Qualification:</h3>
+                </div>
+                <table className="w-full border-collapse border border-black text-center text-[10px]">
+                    <thead className="bg-gray-50 uppercase">
+                        <tr>
+                            <th className="border border-black p-2 w-1/4">Certificate</th>
+                            <th className="border border-black p-2 w-1/3">Board / University</th>
+                            <th className="border border-black p-2">Marks / Grade</th>
                             <th className="border border-black p-2">Year</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="uppercase">
                         <tr className="h-10">
-                            <td className="border border-black"></td>
-                            <td className="border border-black">{data.qualification?.marks}</td>
-                            <td className="border border-black">{data.qualification?.year}</td>
+                            <td className="border border-black font-bold p-2">Matric / O-Level</td>
+                            <td className="border border-black p-2">{getVal('qualification.matric.board', 'matricBoard')}</td>
+                            <td className="border border-black p-2">{getVal('qualification.matric.marks', 'matricMarks')}</td>
+                            <td className="border border-black p-2">{getVal('qualification.matric.year', 'matricYear')}</td>
+                        </tr>
+                        <tr className="h-10">
+                            <td className="border border-black font-bold p-2">Inter / A-Level</td>
+                            <td className="border border-black p-2">{getVal('qualification.inter.board', 'interBoard')}</td>
+                            <td className="border border-black p-2">{getVal('qualification.inter.marks', 'interMarks')}</td>
+                            <td className="border border-black p-2">{getVal('qualification.inter.year', 'interYear')}</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            {/* Office Use Section */}
-            <div className="mt-10 border-t-2 border-black pt-4">
-                <h3 className="font-bold underline italic mb-4">FOR OFFICE USE ONLY</h3>
-                <div className="grid grid-cols-2 gap-x-10">
-                    <div className="space-y-2">
-                        <p>Total Fee: <span className="border-b border-black inline-block w-40"></span></p>
-                        <p className="text-orange-600">Installments: <span className="border-b border-black inline-block w-32"></span></p>
-                        <p className="text-orange-600">Remaining: <span className="border-b border-black inline-block w-32"></span></p>
+            {/* --- OFFICIAL USE ONLY (Rounded Box like Image) --- */}
+            <div className={`mt-10 border-2 ${borderColor} rounded-[2rem] p-6 relative`}>
+                <div className={`absolute -top-4 left-10 bg-white px-6 border-2 ${borderColor} rounded-full py-1 text-[10px] font-black italic ${primaryColor}`}>
+                    OFFICIAL USE ONLY
+                </div>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-6 mt-4 font-bold uppercase text-[11px]">
+                    <div className="space-y-4">
+                        <div className="flex justify-between border-b border-gray-300 pb-1">Total Course Fee: <span className="text-black">RS. {getVal('officeUse.totalFee', 'totalFee')}</span></div>
+                        <div className="flex justify-between border-b border-gray-300 pb-1">Registration Fee: <span className="text-black">RS. {getVal('officeUse.registrationFee', 'registrationFee')}</span></div>
+                        <div className="flex justify-between border-b border-gray-300 pb-1 text-red-600">Balance Amount: <span className="">RS. {getVal('officeUse.balanceAmount', 'balanceAmount')}</span></div>
                     </div>
-                    <div className="space-y-2">
-                        <p>Remarks: <span className="border-b border-black inline-block w-40"></span></p>
-                        <p className="text-orange-600">Note: <span className="border-b border-black inline-block w-40"></span></p>
+                    <div className="space-y-4">
+                        <div className="flex justify-between border-b border-gray-300 pb-1">Remarks: <span className="font-normal italic">{getVal('officeUse.remarks', 'remarks')}</span></div>
+                        <div className="flex justify-between border-b border-gray-300 pb-1">Class Schedule: <span className="font-normal">{getVal('officeUse.classSchedule', 'classSchedule')}</span></div>
+                        <div className="flex justify-between border-b border-gray-300 pb-1">Issued By: <span className="font-normal">{getVal('officeUse.issuedBy', 'issuedBy')}</span></div>
                     </div>
                 </div>
             </div>
 
-            {/* Footer Signatures */}
-            <div className="flex justify-between mt-16 px-4">
+            {/* --- TERMS & CONDITIONS --- */}
+            <div className="mt-8 bg-gray-50 p-3 rounded-xl text-[9px] text-gray-600 font-medium border border-gray-200">
+                <p>Terms: 1) Fee is non-refundable. 2) Admission is provisional subject to document verification. 3) 75% attendance is mandatory for certification.</p>
+            </div>
+
+            {/* --- SIGNATURES --- */}
+            <div className="mt-16 flex justify-between items-end px-10">
                 <div className="text-center">
-                    <div className="border-t border-black w-40"></div>
-                    <p className="text-xs">Agent Signature</p>
+                    <div className="w-48 border-t-2 border-black mb-1"></div>
+                    <p className="text-[10px] font-black uppercase">Authorized Seal</p>
                 </div>
                 <div className="text-center">
-                    <div className="border-t border-black w-40"></div>
-                    <p className="text-xs">Student Signature</p>
+                    <div className="w-48 border-t-2 border-black mb-1"></div>
+                    <p className="text-[10px] font-black uppercase">Student Signature</p>
                 </div>
             </div>
+
+            {/* --- STUDENT COPY (For Education Zone Image Reference) --- */}
+            {isEZ && (
+                <div className="mt-12 pt-8 border-t-2 border-dashed border-gray-400">
+                    <p className="text-center text-[10px] font-bold text-gray-400 mb-4 uppercase tracking-[1em]">Student Copy</p>
+                    <div className="grid grid-cols-2 gap-20 font-bold uppercase text-[11px]">
+                        <div className="flex justify-between border-b border-black pb-1">Total Fee Paid: <span>RS. {getVal('officeUse.totalFee', 'totalFee')}</span></div>
+                        <div className="flex justify-between border-b border-black pb-1">Date: <span>{data.date || '__________'}</span></div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 });
