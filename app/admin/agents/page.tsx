@@ -11,6 +11,7 @@ interface Agent {
 }
 
 export default function AgentManagement() {
+    // Initial state ko empty array rakha hai taake .map crash na kare
     const [agents, setAgents] = useState<Agent[]>([]);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
@@ -21,9 +22,17 @@ export default function AgentManagement() {
             const res = await axios.get('http://localhost:5000/api/admin/agents', {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            setAgents(res.data);
+
+            // Backend se aane wala data check kar rahe hain
+            // Agar res.data.agents hai to wo use karein, warna res.data
+            if (res.data && res.data.agents) {
+                setAgents(res.data.agents);
+            } else if (Array.isArray(res.data)) {
+                setAgents(res.data);
+            }
         } catch (err) {
             console.error("Agents fetch error:", err);
+            setAgents([]); // Error ki surat mein empty array
         }
     };
 
@@ -116,7 +125,7 @@ export default function AgentManagement() {
                     {/* Agents List Table */}
                     <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="p-5 border-b border-gray-50 bg-slate-50/50">
-                            <h2 className="font-bold text-slate-700">Active Agents ({agents.length})</h2>
+                            <h2 className="font-bold text-slate-700">Active Agents ({agents?.length || 0})</h2>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
@@ -129,12 +138,13 @@ export default function AgentManagement() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {agents.map(agent => (
+                                    {/* Safe Mapping using optional chaining and fallout array */}
+                                    {(Array.isArray(agents) ? agents : []).map(agent => (
                                         <tr key={agent._id} className="hover:bg-blue-50/30 transition-colors group">
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold">
-                                                        {agent.name.charAt(0)}
+                                                        {agent.name?.charAt(0) || 'A'}
                                                     </div>
                                                     <span className="font-bold text-slate-700">{agent.name}</span>
                                                 </div>
@@ -155,7 +165,7 @@ export default function AgentManagement() {
                                     ))}
                                 </tbody>
                             </table>
-                            {agents.length === 0 && (
+                            {(!agents || agents.length === 0) && (
                                 <div className="p-10 text-center text-gray-400 italic">
                                     No agents found. Start by adding one!
                                 </div>
