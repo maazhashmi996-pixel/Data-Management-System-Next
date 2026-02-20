@@ -10,7 +10,8 @@ import {
     ShieldCheck,
     UserCircle,
     PlusCircle,
-    ClipboardList
+    ClipboardList,
+    GraduationCap // Naya icon teachers ke liye
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -29,6 +30,7 @@ export default function Sidebar() {
     const adminMenu = [
         { name: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
         { name: 'Manage Agents', path: '/admin/agents', icon: <Users size={20} /> },
+        { name: 'Faculty Directory', path: '/admin/teacher', icon: <GraduationCap size={20} /> }, // Naya Teacher Section
         { name: 'All Student Forms', path: '/admin/forms', icon: <FileText size={20} /> },
     ];
 
@@ -89,8 +91,8 @@ export default function Sidebar() {
                         key={item.path}
                         href={item.path}
                         className={`group flex items-center gap-3 p-3.5 rounded-xl transition-all duration-300 ${pathname === item.path
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
+                            : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                             }`}
                     >
                         <span className={`${pathname === item.path ? 'text-white scale-110' : 'text-slate-500 group-hover:text-blue-400 group-hover:scale-110'} transition-all duration-300`}>
