@@ -12,7 +12,9 @@ import {
     PlusCircle,
     ClipboardList,
     GraduationCap,
-    BookOpenCheck // Naya icon Exam Booking ke liye
+    BookOpenCheck,
+    UserPlus, // Icon for Daily Visitors
+    Search
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -28,19 +30,22 @@ export default function Sidebar() {
     }, []);
 
     // --- ADMIN MENU CONFIGURATION ---
+    // Ismein 'Daily Visitors' add kar diya gaya hai
     const adminMenu = [
         { name: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
+        { name: 'Daily Visitors', path: '/admin/visitors', icon: <UserPlus size={20} /> }, // Naya Section
         { name: 'Manage Agents', path: '/admin/agents', icon: <Users size={20} /> },
         { name: 'Faculty Directory', path: '/admin/teacher', icon: <GraduationCap size={20} /> },
         { name: 'All Student Forms', path: '/admin/forms', icon: <FileText size={20} /> },
-        { name: 'Exam Management', path: '/admin/exams', icon: <BookOpenCheck size={20} /> }, // Admin ke liye Management field
+        { name: 'Exam Management', path: '/admin/exams', icon: <BookOpenCheck size={20} /> },
     ];
 
     // --- AGENT MENU CONFIGURATION ---
     const agentMenu = [
         { name: 'My Dashboard', path: '/agent/dashboard', icon: <LayoutDashboard size={20} /> },
         { name: 'New Admission', path: '/agent/new-form', icon: <PlusCircle size={20} /> },
-        { name: 'Exam Booking', path: '/agent/exam-booking', icon: <BookOpenCheck size={20} /> }, // Agent ke liye Booking field
+        { name: 'Daily Visitors', path: '/agent/visitors', icon: <UserPlus size={20} /> }, // Agent bhi entry kar saky ga
+        { name: 'Exam Booking', path: '/agent/exam-booking', icon: <BookOpenCheck size={20} /> },
         { name: 'My Submissions', path: '/agent/my-forms', icon: <ClipboardList size={20} /> },
     ];
 
