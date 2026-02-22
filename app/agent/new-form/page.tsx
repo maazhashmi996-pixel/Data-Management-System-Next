@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, Calculator } from 'lucide-react';
+import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, MapPin, Calendar, Mail, Globe } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function CreateEnrollment() {
@@ -15,11 +15,18 @@ export default function CreateEnrollment() {
         fatherName: '',
         cnic: '',
         mobileNo: '',
-        address: '',
         email: '',
+        address: '',
+        city: 'Lahore',
+        gender: 'Male',
+        dob: '',
+        age: '',
         course: '',
         duration: '',
+        purpose: 'Pakistan', // DEFAULT VALUE
         formType: forcedType || 'Education Zone',
+        admissionType: 'Regular',
+        date: new Date().toISOString().split('T')[0],
         qualification: {
             matric: { board: '', marks: '', year: '' },
             inter: { board: '', marks: '', year: '' }
@@ -27,12 +34,11 @@ export default function CreateEnrollment() {
         officeUse: {
             totalFee: '',
             registrationFee: '',
-            balanceAmount: '',
-            noOfInstallments: '1', // Default 1
+            balanceAmount: '0',
+            noOfInstallments: '1',
             monthlyInstallment: '0',
             classSchedule: '',
-            remarks: '',
-            issuedBy: 'Agent Portal'
+            issuedBy: 'Admin'
         }
     });
 
@@ -84,7 +90,6 @@ export default function CreateEnrollment() {
         e.preventDefault();
         setLoading(true);
 
-        // Ensure you use the correct API endpoint (Admin or Agent)
         const API_URL = 'http://localhost:5000/api/admin/add-form';
 
         try {
@@ -95,11 +100,12 @@ export default function CreateEnrollment() {
 
             if (res.data.success) {
                 alert("Admission Form Submitted Successfully!");
-                router.push('/admin/dashboard');
+                router.push('/agent/dashboard');
             }
         } catch (error: any) {
             console.error("Submission Error:", error);
-            alert(`Error: ${error.response?.data?.error || "Submission failed"}`);
+            const errorMsg = error.response?.data?.error || error.response?.data?.message || "Submission failed";
+            alert(`Error: ${errorMsg}`);
         } finally {
             setLoading(false);
         }
@@ -119,7 +125,7 @@ export default function CreateEnrollment() {
                             <button onClick={() => router.back()} className="flex items-center gap-1 text-slate-200 hover:text-white mb-1 text-xs font-bold uppercase">
                                 <ArrowLeft size={14} /> Back
                             </button>
-                            <h2 className="text-2xl font-black uppercase tracking-tight">New Admission Form</h2>
+                            <h2 className="text-2xl font-black uppercase tracking-tight">New Enrollment Form</h2>
                         </div>
                     </div>
                     <div className="bg-white/20 px-4 py-2 rounded-xl backdrop-blur-md border border-white/30 text-right">
@@ -128,90 +134,132 @@ export default function CreateEnrollment() {
                     </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-12">
+                <form onSubmit={handleSubmit} className="p-8 md:p-12 space-y-10">
 
-                    {/* 1. STUDENT INFO */}
+                    {/* 1. PERSONAL DETAILS */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-slate-800 border-b-2 border-slate-100 pb-3">
                             <User className="text-blue-500" size={22} />
                             <p className="font-black text-sm uppercase tracking-widest">Personal Details</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <input type="text" name="studentName" placeholder="STUDENT NAME" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold uppercase" required />
+                            <input type="text" name="fatherName" placeholder="FATHER NAME" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold uppercase" required />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <input type="text" name="cnic" placeholder="CNIC (e.g. 35201-XXXXXXX-X)" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono" required />
+                            <input type="text" name="mobileNo" placeholder="MOBILE NO" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono" required />
+                            <input type="email" name="email" placeholder="EMAIL ADDRESS" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Full Name</label>
-                                <input type="text" name="studentName" placeholder="AS PER MATRIC" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all uppercase font-bold" required />
+                                <label className="text-[10px] font-black text-slate-400 ml-2">DATE OF BIRTH</label>
+                                <input type="date" name="dob" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Father's Name</label>
-                                <input type="text" name="fatherName" placeholder="GUARDIAN NAME" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500 transition-all uppercase font-bold" required />
+                                <label className="text-[10px] font-black text-slate-400 ml-2">GENDER</label>
+                                <select name="gender" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold">
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 ml-2">CITY</label>
+                                <input type="text" name="city" placeholder="Lahore" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" />
                             </div>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <input type="text" name="cnic" placeholder="CNIC / B-FORM (35201-XXXXXXX-X)" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono" required />
-                            <input type="text" name="mobileNo" placeholder="WHATSAPP / MOBILE NO" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-mono" required />
-                        </div>
-                        <input type="text" name="address" placeholder="COMPLETE RESIDENTIAL ADDRESS" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl" required />
+                        <input type="text" name="address" placeholder="COMPLETE ADDRESS" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl" required />
                     </div>
 
-                    {/* 2. COURSE INFO */}
+                    {/* 2. ACADEMIC QUALIFICATION */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 text-slate-800 border-b-2 border-slate-100 pb-3">
+                            <GraduationCap className="text-emerald-500" size={22} />
+                            <p className="font-black text-sm uppercase tracking-widest">Academic Qualification</p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                                <p className="font-black text-xs text-slate-500 underline">MATRIC / O-LEVEL</p>
+                                <input type="text" name="board" placeholder="Board Name" onChange={(e) => handleChange(e, 'qualification', 'matric')} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm" />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <input type="text" name="marks" placeholder="Marks" onChange={(e) => handleChange(e, 'qualification', 'matric')} className="p-3 bg-white border border-slate-200 rounded-xl text-sm" />
+                                    <input type="text" name="year" placeholder="Year" onChange={(e) => handleChange(e, 'qualification', 'matric')} className="p-3 bg-white border border-slate-200 rounded-xl text-sm" />
+                                </div>
+                            </div>
+                            <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                                <p className="font-black text-xs text-slate-500 underline">INTER / A-LEVEL</p>
+                                <input type="text" name="board" placeholder="Board Name" onChange={(e) => handleChange(e, 'qualification', 'inter')} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm" />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <input type="text" name="marks" placeholder="Marks" onChange={(e) => handleChange(e, 'qualification', 'inter')} className="p-3 bg-white border border-slate-200 rounded-xl text-sm" />
+                                    <input type="text" name="year" placeholder="Year" onChange={(e) => handleChange(e, 'qualification', 'inter')} className="p-3 bg-white border border-slate-200 rounded-xl text-sm" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 3. COURSE INFO */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-slate-800 border-b-2 border-slate-100 pb-3">
                             <BookOpen className="text-purple-500" size={22} />
                             <p className="font-black text-sm uppercase tracking-widest">Course Information</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <input type="text" name="course" placeholder="COURSE NAME (e.g. Graphic Designing)" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold uppercase" required />
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <input type="text" name="course" placeholder="COURSE NAME" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold uppercase" required />
                             <select name="duration" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" required>
                                 <option value="">SELECT DURATION</option>
                                 <option value="3 Months">3 Months</option>
                                 <option value="6 Months">6 Months</option>
                                 <option value="1 Year">1 Year</option>
-                                <option value="2 Year">2 Year</option>
+                            </select>
+                            {/* --- ADDED PURPOSE FIELD --- */}
+                            <select name="purpose" onChange={handleChange} value={formData.purpose} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" required>
+                                <option value="Pakistan">Pakistan</option>
+                                <option value="Study Abroad">Study Abroad</option>
                             </select>
                         </div>
                     </div>
 
-                    {/* 3. FEE & INSTALLMENTS (NEW FIELDS ADDED) */}
+                    {/* 4. FEE STRUCTURE */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-slate-800 border-b-2 border-slate-100 pb-3">
                             <DollarSign className="text-orange-500" size={22} />
-                            <p className="font-black text-sm uppercase tracking-widest">Fee Structure & Installments</p>
+                            <p className="font-black text-sm uppercase tracking-widest">Fee Structure</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-900 p-6 rounded-[2rem] text-white">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 ml-2">TOTAL COURSE FEE</label>
-                                <input type="number" name="totalFee" placeholder="0" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-4 bg-white border border-slate-200 rounded-xl font-black text-lg" required />
+                                <label className="text-[10px] font-black text-slate-400 ml-1">TOTAL FEE</label>
+                                <input type="number" name="totalFee" placeholder="0" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-lg text-white" required />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 ml-2">DEPOSIT AMOUNT</label>
-                                <input type="number" name="registrationFee" placeholder="0" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-4 bg-white border border-slate-200 rounded-xl font-black text-lg text-green-600" required />
+                                <label className="text-[10px] font-black text-slate-400 ml-1">REG. FEE PAID</label>
+                                <input type="number" name="registrationFee" placeholder="0" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-lg text-green-400" required />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 ml-2">INSTALLMENTS (QTY)</label>
-                                <input type="number" name="noOfInstallments" min="1" placeholder="1" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-4 bg-white border border-slate-200 rounded-xl font-black text-lg text-blue-600" />
+                                <label className="text-[10px] font-black text-slate-400 ml-1">INSTALLMENTS</label>
+                                <input type="number" name="noOfInstallments" min="1" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-lg" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 ml-2">MONTHLY PAYABLE</label>
-                                <div className="p-4 bg-slate-200 border border-slate-300 rounded-xl font-black text-lg text-indigo-700">
+                                <label className="text-[10px] font-black text-slate-400 ml-1">MONTHLY</label>
+                                <div className="p-3 bg-indigo-500 rounded-xl font-black text-lg text-center">
                                     {formData.officeUse.monthlyInstallment}
                                 </div>
                             </div>
                         </div>
-
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-2">REMAINING BALANCE</label>
-                                <input type="text" value={formData.officeUse.balanceAmount} readOnly className="w-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-black text-xl cursor-not-allowed" />
+                                <input type="text" value={formData.officeUse.balanceAmount} readOnly className="w-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-black text-xl" />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 ml-2">CLASS TIMING</label>
-                                <input type="text" name="classSchedule" placeholder="e.g. 02:00 PM - 04:00 PM" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" />
+                                <label className="text-[10px] font-black text-slate-400 ml-2">CLASS SCHEDULE</label>
+                                <input type="text" name="classSchedule" placeholder="e.g. Mon-Fri (2-4 PM)" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" />
                             </div>
                         </div>
                     </div>
 
                     {/* SUBMIT BUTTON */}
-                    <button type="submit" disabled={loading} className={`w-full py-6 rounded-2xl font-black text-xl tracking-[0.2em] flex items-center justify-center gap-4 transition-all shadow-2xl disabled:opacity-50 ${formData.formType === 'DIB Education System' ? 'bg-indigo-900 hover:bg-indigo-950' : 'bg-orange-600 hover:bg-orange-700'} text-white`}>
+                    <button type="submit" disabled={loading} className={`w-full py-6 rounded-3xl font-black text-xl tracking-[0.2em] flex items-center justify-center gap-4 transition-all shadow-2xl disabled:opacity-50 ${formData.formType === 'DIB Education System' ? 'bg-indigo-900 hover:bg-indigo-950' : 'bg-orange-600 hover:bg-orange-700'} text-white`}>
                         {loading ? 'PROCESSING...' : (
                             <>
                                 <Save size={24} /> CONFIRM & SAVE ADMISSION

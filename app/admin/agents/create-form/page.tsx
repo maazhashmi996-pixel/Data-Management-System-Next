@@ -2,7 +2,8 @@
 import { useState, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import axios from 'axios';
-import { ArrowLeft, GraduationCap, User, BookOpen, CreditCard, School, ListOrdered } from 'lucide-react';
+import { ArrowLeft, User, BookOpen, CreditCard, School, Loader2, Mail, Clock, Globe } from 'lucide-react';
+import { toast, Toaster } from 'react-hot-toast';
 
 function FormContent() {
     const searchParams = useSearchParams();
@@ -19,8 +20,9 @@ function FormContent() {
         mobileNo: '',
         address: '',
         email: '',
-        course: '',
-        duration: '',
+        course: '',     // Required by backend
+        duration: '',   // Required by backend
+        purpose: 'Pakistan', // NEW FIELD
         dob: '',
         age: '',
         gender: 'Male',
@@ -40,7 +42,7 @@ function FormContent() {
 
     const logoSrc = selectedType === 'Education Zone' ? '/ez-logo.png' : '/dib-logo.png';
 
-    // Auto Calculations
+    // Auto Calculations for Fees
     useEffect(() => {
         const total = Number(formData.totalFee) || 0;
         const paid = Number(formData.registrationFee) || 0;
@@ -61,20 +63,20 @@ function FormContent() {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
         try {
-            // Backend Schema ke mutabiq payload
             const payload = {
                 formType: selectedType,
                 studentName: formData.studentName?.trim().toUpperCase(),
                 fatherName: formData.fatherName?.trim().toUpperCase(),
                 cnic: formData.cnic?.trim(),
                 mobileNo: formData.mobileNo?.trim(),
-                email: formData.email || "N/A",
+                email: formData.email?.trim().toLowerCase() || "N/A",
                 address: formData.address?.trim(),
                 city: formData.city,
                 gender: formData.gender,
                 dob: formData.dob,
                 course: formData.course?.trim(),
-                duration: formData.duration,
+                duration: formData.duration?.trim(),
+                purpose: formData.purpose, // NEW FIELD ADDED TO PAYLOAD
                 qualification: {
                     matric: {
                         board: formData.matricBoard || "N/A",
@@ -96,7 +98,6 @@ function FormContent() {
                 }
             };
 
-            // CORRECTED URL: Match this with your backend route
             const res = await axios.post('http://localhost:5000/api/admin/add-form', payload, {
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -104,14 +105,14 @@ function FormContent() {
                 }
             });
 
-            if (res.data.success) {
-                alert(`SUCCESS! Student Registered. Reg No: ${res.data.student?.regNo || 'EZ-123'}`);
-                router.push('/admin/dashboard');
+            if (res.status === 201 || res.data.success) {
+                toast.success(`Registered! ID: ${res.data.student?.regNo || 'Success'}`);
+                setTimeout(() => router.push('/admin/dashboard'), 2000);
             }
         } catch (err: any) {
-            console.error("Submission Error:", err.response?.data);
-            const errorMsg = err.response?.data?.error || err.response?.data?.message || "Server Connection Failed";
-            alert(`FAILED: ${errorMsg}`);
+            console.error("FULL ERROR:", err);
+            const msg = err.response?.data?.error || err.response?.data?.message || "Server Connection Failed";
+            toast.error(`FAILED: ${msg}`);
         } finally {
             setLoading(false);
         }
@@ -121,17 +122,18 @@ function FormContent() {
 
     return (
         <div className="max-w-5xl mx-auto bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 mb-10">
+            <Toaster position="top-right" />
 
             {/* Header */}
             <div className={`p-8 text-white flex justify-between items-center transition-all duration-500 ${isEZ ? 'bg-orange-600' : 'bg-indigo-900'}`}>
                 <div className="flex items-center gap-5">
-                    <div className="bg-white p-2 rounded-2xl shadow-lg shadow-black/20">
+                    <div className="bg-white p-2 rounded-2xl shadow-lg">
                         <img src={logoSrc} alt="Logo" className="h-14 w-14 object-contain"
                             onError={(e) => (e.currentTarget.src = 'https://via.placeholder.com/150')} />
                     </div>
                     <div>
                         <h2 className="text-3xl font-black italic tracking-tighter uppercase leading-none">{selectedType}</h2>
-                        <p className="opacity-90 font-medium tracking-widest text-[10px] mt-1">NEW STUDENT ENROLLMENT SYSTEM</p>
+                        <p className="opacity-90 font-medium tracking-widest text-[10px] mt-1 uppercase">Student Enrollment Portal</p>
                     </div>
                 </div>
                 <button type="button" onClick={() => router.back()} className="bg-white/20 hover:bg-white/30 p-3 rounded-full transition-all">
@@ -139,153 +141,167 @@ function FormContent() {
                 </button>
             </div>
 
-            {/* System Selector */}
+            {/* System Toggle */}
             <div className="bg-slate-50 p-6 border-b flex justify-center gap-4">
-                <button type="button" onClick={() => setSelectedType('DIB Education System')}
-                    className={`px-8 py-2 rounded-xl text-xs font-black transition-all ${selectedType === 'DIB Education System' ? 'bg-indigo-900 text-white shadow-lg scale-105' : 'bg-white text-slate-400 border'}`}>
-                    DIB SYSTEM
-                </button>
-                <button type="button" onClick={() => setSelectedType('Education Zone')}
-                    className={`px-8 py-2 rounded-xl text-xs font-black transition-all ${selectedType === 'Education Zone' ? 'bg-orange-600 text-white shadow-lg scale-105' : 'bg-white text-slate-400 border'}`}>
-                    EZ SYSTEM
-                </button>
+                {['DIB Education System', 'Education Zone'].map((sys) => (
+                    <button key={sys} type="button" onClick={() => setSelectedType(sys)}
+                        className={`px-8 py-2 rounded-xl text-xs font-black transition-all ${selectedType === sys ? (isEZ ? 'bg-orange-600' : 'bg-indigo-900') + ' text-white shadow-lg scale-105' : 'bg-white text-slate-400 border'}`}>
+                        {sys.includes('DIB') ? 'DIB SYSTEM' : 'EZ SYSTEM'}
+                    </button>
+                ))}
             </div>
 
             <form onSubmit={handleSubmit} className="p-8 space-y-8 text-black">
 
-                {/* 1. PERSONAL INFO */}
+                {/* Section 1: Personal Info & Course */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-3 flex items-center gap-2 border-b-2 pb-2"><User size={18} className="text-slate-400" /><h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">1. Personal Information</h3></div>
+                    <div className="md:col-span-3 flex items-center gap-2 border-b-2 pb-2">
+                        <User size={18} className="text-slate-400" />
+                        <h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">1. Personal & Course Details</h3>
+                    </div>
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Student Full Name</label>
                         <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200 uppercase"
                             value={formData.studentName} onChange={e => setFormData({ ...formData, studentName: e.target.value })} />
                     </div>
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Father's Name</label>
                         <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200 uppercase"
                             value={formData.fatherName} onChange={e => setFormData({ ...formData, fatherName: e.target.value })} />
                     </div>
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">CNIC / B-Form</label>
-                        <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200" placeholder="35201-XXXXXXX-X"
+                        <input required placeholder="35201-XXXXXXX-X" className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.cnic} onChange={e => setFormData({ ...formData, cnic: e.target.value })} />
                     </div>
+
+                    {/* EMAIL FIELD */}
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Mobile / WhatsApp</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
+                            <Mail size={10} /> Student Email
+                        </label>
+                        <input type="email" placeholder="example@gmail.com" className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
+                            value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
+                    </div>
+
+                    {/* COURSE FIELD */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
+                            <BookOpen size={10} /> Course Applied For *
+                        </label>
+                        <input required placeholder="e.g. Web Development" className={`w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 focus:border-slate-400 ${isEZ ? 'border-orange-100' : 'border-indigo-100'}`}
+                            value={formData.course} onChange={e => setFormData({ ...formData, course: e.target.value })} />
+                    </div>
+
+                    {/* DURATION FIELD */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
+                            <Clock size={10} /> Course Duration *
+                        </label>
+                        <input required placeholder="e.g. 3 Months / 1 Year" className={`w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 focus:border-slate-400 ${isEZ ? 'border-orange-100' : 'border-indigo-100'}`}
+                            value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} />
+                    </div>
+
+                    {/* PURPOSE FIELD - NEW */}
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
+                            <Globe size={10} /> Purpose *
+                        </label>
+                        <select required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
+                            value={formData.purpose} onChange={e => setFormData({ ...formData, purpose: e.target.value })}>
+                            <option value="Pakistan">Pakistan</option>
+                            <option value="Study Abroad">Study Abroad</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Mobile No</label>
                         <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.mobileNo} onChange={e => setFormData({ ...formData, mobileNo: e.target.value })} />
                     </div>
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Date of Birth</label>
                         <input type="date" required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} />
                     </div>
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">City</label>
                         <input className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} />
                     </div>
+
                     <div className="md:col-span-3 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Permanent Residential Address</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Address</label>
                         <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
                     </div>
                 </section>
 
-                {/* 2. ACADEMIC QUALIFICATION */}
+                {/* Section 2: Education */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
-                    <div className="md:col-span-2 flex items-center gap-2 border-b pb-2 mb-2"><School size={18} className="text-slate-400" /><h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">2. Academic Qualification</h3></div>
-                    <div className="space-y-3 p-4 bg-white rounded-2xl shadow-sm">
-                        <h4 className={`text-[11px] font-black uppercase ${isEZ ? 'text-orange-600' : 'text-indigo-900'}`}>Matric / O-Level</h4>
-                        <input placeholder="Board / University" className="w-full p-2.5 bg-slate-50 rounded-xl text-sm border"
-                            value={formData.matricBoard} onChange={e => setFormData({ ...formData, matricBoard: e.target.value })} />
-                        <div className="grid grid-cols-2 gap-2">
-                            <input placeholder="Marks/Grade" className="p-2.5 bg-slate-50 rounded-xl text-sm border"
-                                value={formData.matricMarks} onChange={e => setFormData({ ...formData, matricMarks: e.target.value })} />
-                            <input placeholder="Year" className="p-2.5 bg-slate-50 rounded-xl text-sm border"
-                                value={formData.matricYear} onChange={e => setFormData({ ...formData, matricYear: e.target.value })} />
-                        </div>
+                    <div className="md:col-span-2 flex items-center gap-2 border-b pb-2 mb-2">
+                        <School size={18} className="text-slate-400" />
+                        <h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">2. Education History</h3>
                     </div>
-                    <div className="space-y-3 p-4 bg-white rounded-2xl shadow-sm">
-                        <h4 className={`text-[11px] font-black uppercase ${isEZ ? 'text-orange-600' : 'text-indigo-900'}`}>Inter / A-Level</h4>
-                        <input placeholder="Board / University" className="w-full p-2.5 bg-slate-50 rounded-xl text-sm border"
-                            value={formData.interBoard} onChange={e => setFormData({ ...formData, interBoard: e.target.value })} />
-                        <div className="grid grid-cols-2 gap-2">
-                            <input placeholder="Marks/Grade" className="p-2.5 bg-slate-50 rounded-xl text-sm border"
-                                value={formData.interMarks} onChange={e => setFormData({ ...formData, interMarks: e.target.value })} />
-                            <input placeholder="Year" className="p-2.5 bg-slate-50 rounded-xl text-sm border"
-                                value={formData.interYear} onChange={e => setFormData({ ...formData, interYear: e.target.value })} />
+
+                    {['matric', 'inter'].map((edu) => (
+                        <div key={edu} className="space-y-3 p-4 bg-white rounded-2xl shadow-sm">
+                            <h4 className={`text-[11px] font-black uppercase ${isEZ ? 'text-orange-600' : 'text-indigo-900'}`}>{edu === 'matric' ? 'Matric / O-Level' : 'Inter / A-Level'}</h4>
+                            <input placeholder="Board" className="w-full p-2.5 bg-slate-50 rounded-xl text-sm border font-bold"
+                                value={edu === 'matric' ? formData.matricBoard : formData.interBoard}
+                                onChange={e => setFormData({ ...formData, [edu === 'matric' ? 'matricBoard' : 'interBoard']: e.target.value })} />
+                            <div className="grid grid-cols-2 gap-2">
+                                <input placeholder="Marks" className="p-2.5 bg-slate-50 rounded-xl text-sm border font-bold"
+                                    value={edu === 'matric' ? formData.matricMarks : formData.interMarks}
+                                    onChange={e => setFormData({ ...formData, [edu === 'matric' ? 'matricMarks' : 'interMarks']: e.target.value })} />
+                                <input placeholder="Year" className="p-2.5 bg-slate-50 rounded-xl text-sm border font-bold"
+                                    value={edu === 'matric' ? formData.matricYear : formData.interYear}
+                                    onChange={e => setFormData({ ...formData, [edu === 'matric' ? 'matricYear' : 'interYear']: e.target.value })} />
+                            </div>
                         </div>
-                    </div>
+                    ))}
                 </section>
 
-                {/* 3. COURSE DETAILS */}
-                <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-3 flex items-center gap-2 border-b-2 pb-2"><BookOpen size={18} className="text-slate-400" /><h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">3. Course Details</h3></div>
-                    <div className="md:col-span-2 space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Applied Course Name</label>
-                        <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200 uppercase"
-                            value={formData.course} onChange={e => setFormData({ ...formData, course: e.target.value })} />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Course Duration</label>
-                        <select required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
-                            value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })}>
-                            <option value="">Select Duration</option>
-                            <option value="3 Months">3 Months</option>
-                            <option value="6 Months">6 Months</option>
-                            <option value="1 Year">1 Year</option>
-                            <option value="2 Year">2 Year</option>
-                        </select>
-                    </div>
-                </section>
-
-                {/* 4. FEE & INSTALLMENT INFORMATION */}
+                {/* Section 3: Fees */}
                 <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="md:col-span-4 flex items-center gap-2 border-b-2 pb-2"><CreditCard size={18} className="text-slate-400" /><h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">4. Fee & Installment Plan</h3></div>
+                    <div className="md:col-span-4 flex items-center gap-2 border-b-2 pb-2">
+                        <CreditCard size={18} className="text-slate-400" />
+                        <h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">3. Fee Plan</h3>
+                    </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Total Fee Amount</label>
-                        <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border border-transparent focus:border-slate-200"
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Total Fee</label>
+                        <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.totalFee} onChange={e => setFormData({ ...formData, totalFee: Number(e.target.value) })} />
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Initial Deposit (Paid)</label>
-                        <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border border-transparent focus:border-slate-200"
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Paid Amount</label>
+                        <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.registrationFee} onChange={e => setFormData({ ...formData, registrationFee: Number(e.target.value) })} />
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">No. of Installments</label>
-                        <select className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border border-transparent focus:border-slate-200"
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Installments</label>
+                        <select className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.noOfInstallments} onChange={e => setFormData({ ...formData, noOfInstallments: e.target.value })}>
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 10, 12].map(num => (
-                                <option key={num} value={num}>{num} Installment{num > 1 ? 's' : ''}</option>
-                            ))}
+                            {[1, 2, 3, 4, 6, 8, 12].map(n => <option key={n} value={n}>{n}</option>)}
                         </select>
                     </div>
 
                     <div className="space-y-1">
-                        <label className="text-[10px] font-black text-red-400 uppercase ml-1">Remaining Balance</label>
-                        <input readOnly className="w-full bg-red-50 p-3.5 rounded-2xl font-bold text-red-600 border border-red-100"
-                            value={formData.balanceAmount} />
+                        <label className="text-[10px] font-black text-red-400 uppercase ml-1">Remaining</label>
+                        <input readOnly className="w-full bg-red-50 p-3.5 rounded-2xl font-bold text-red-600 outline-none" value={formData.balanceAmount} />
                     </div>
 
-                    {formData.balanceAmount > 0 && (
-                        <div className="md:col-span-4 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <ListOrdered size={20} className="text-indigo-600" />
-                                <span className="text-xs font-bold text-indigo-900 uppercase">Estimated Monthly Installment:</span>
-                            </div>
-                            <span className="text-xl font-black text-indigo-900 tracking-tighter">RS. {formData.installmentAmount} /-</span>
-                        </div>
-                    )}
-
                     <button disabled={loading} type="submit"
-                        className={`md:col-span-4 text-white font-black py-5 rounded-[2rem] mt-6 transition-all shadow-xl active:scale-95 disabled:opacity-50 ${isEZ ? 'bg-orange-600 hover:bg-orange-700' : 'bg-indigo-900 hover:bg-indigo-950'}`}>
-                        {loading ? "PROCESSING..." : "REGISTER STUDENT"}
+                        className={`md:col-span-4 flex justify-center items-center gap-3 text-white font-black py-5 rounded-[2rem] mt-4 shadow-xl transition-all active:scale-95 disabled:opacity-50 ${isEZ ? 'bg-orange-600 hover:bg-orange-700' : 'bg-indigo-900 hover:bg-indigo-950'}`}>
+                        {loading ? <Loader2 className="animate-spin" /> : "REGISTER STUDENT"}
                     </button>
                 </section>
             </form>
@@ -296,7 +312,7 @@ function FormContent() {
 export default function CreateFormPage() {
     return (
         <div className="min-h-screen bg-slate-100 p-4 md:p-8">
-            <Suspense fallback={<div className="flex justify-center mt-20 font-black text-slate-400 animate-pulse">LOADING FORM...</div>}>
+            <Suspense fallback={<div className="text-center mt-20 font-black text-slate-400 animate-pulse uppercase">Initializing System...</div>}>
                 <FormContent />
             </Suspense>
         </div>

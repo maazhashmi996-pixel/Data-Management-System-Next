@@ -92,7 +92,7 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
             </div>
 
             {/* --- COURSE INFO --- */}
-            <div className="relative z-10 grid grid-cols-2 gap-8 mb-8">
+            <div className="relative z-10 grid grid-cols-2 gap-8 mb-4">
                 <div className="flex items-center gap-3 border-b-2 border-gray-300 pb-2">
                     <span className="font-black uppercase text-gray-600">Applied Course:</span>
                     <span className="text-lg font-bold text-black flex-1 uppercase">{getVal('course')}</span>
@@ -100,6 +100,14 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                 <div className="flex items-center gap-3 border-b-2 border-gray-300 pb-2">
                     <span className="font-black uppercase text-gray-600">Duration:</span>
                     <span className="text-lg font-bold text-black flex-1 uppercase">{getVal('duration')}</span>
+                </div>
+            </div>
+
+            {/* --- PURPOSE FIELD (NEW) --- */}
+            <div className="relative z-10 mb-8">
+                <div className="flex items-center gap-3 border-b-2 border-gray-300 pb-2 w-full">
+                    <span className="font-black uppercase text-gray-600">Admission Purpose:</span>
+                    <span className="text-lg font-bold text-black flex-1 uppercase">{getVal('purpose', 'Pakistan')}</span>
                 </div>
             </div>
 

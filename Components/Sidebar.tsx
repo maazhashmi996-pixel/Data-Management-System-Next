@@ -11,7 +11,8 @@ import {
     UserCircle,
     PlusCircle,
     ClipboardList,
-    GraduationCap // Naya icon teachers ke liye
+    GraduationCap,
+    BookOpenCheck // Naya icon Exam Booking ke liye
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -26,17 +27,20 @@ export default function Sidebar() {
         }
     }, []);
 
-    // Menu items configuration based on Role
+    // --- ADMIN MENU CONFIGURATION ---
     const adminMenu = [
         { name: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
         { name: 'Manage Agents', path: '/admin/agents', icon: <Users size={20} /> },
-        { name: 'Faculty Directory', path: '/admin/teacher', icon: <GraduationCap size={20} /> }, // Naya Teacher Section
+        { name: 'Faculty Directory', path: '/admin/teacher', icon: <GraduationCap size={20} /> },
         { name: 'All Student Forms', path: '/admin/forms', icon: <FileText size={20} /> },
+        { name: 'Exam Management', path: '/admin/exams', icon: <BookOpenCheck size={20} /> }, // Admin ke liye Management field
     ];
 
+    // --- AGENT MENU CONFIGURATION ---
     const agentMenu = [
         { name: 'My Dashboard', path: '/agent/dashboard', icon: <LayoutDashboard size={20} /> },
         { name: 'New Admission', path: '/agent/new-form', icon: <PlusCircle size={20} /> },
+        { name: 'Exam Booking', path: '/agent/exam-booking', icon: <BookOpenCheck size={20} /> }, // Agent ke liye Booking field
         { name: 'My Submissions', path: '/agent/my-forms', icon: <ClipboardList size={20} /> },
     ];
 

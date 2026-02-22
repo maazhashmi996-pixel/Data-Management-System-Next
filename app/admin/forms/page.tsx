@@ -66,20 +66,31 @@ export default function AllFormsPage() {
         return matchesSearch && matchesCSR;
     });
 
+    // --- 🟢 FIXED INSTALLMENT HANDLER ---
     const handleAddInstallment = async (studentId: string) => {
         const amount = prompt("Enter Installment Amount (PKR):");
         if (!amount || isNaN(Number(amount))) return;
+
         try {
             const token = localStorage.getItem('token');
-            await axios.post(`http://localhost:5000/api/admin/add-installment/${studentId}`,
-                { amountPaid: Number(amount) },
+            // FIX: Removed ':id' and corrected path to match backend: /api/admin/forms/:id/installment
+            const res = await axios.post(`http://localhost:5000/api/admin/forms/${studentId}/installment`,
+                {
+                    amount: Number(amount),      // Backend expects 'amount'
+                    amountPaid: Number(amount),  // Keeping for compatibility
+                    paymentDate: new Date()
+                },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-            alert("✅ Installment Added!");
-            setShowModal(false);
-            fetchForms();
-        } catch (err) {
-            alert("❌ Payment Failed.");
+
+            if (res.status === 200 || res.status === 201) {
+                alert("✅ Installment Added Successfully!");
+                setShowModal(false);
+                fetchForms(); // Refresh the list and stats
+            }
+        } catch (err: any) {
+            console.error("Payment Error:", err.response?.data || err.message);
+            alert(`❌ Payment Failed: ${err.response?.data?.message || "Server Error"}`);
         }
     };
 
@@ -171,7 +182,7 @@ export default function AllFormsPage() {
                                             <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1">
                                                 <div
                                                     className="h-full bg-green-500 rounded-full"
-                                                    style={{ width: `${Math.min(100, ((Number(form.officeUse?.totalFee) - Number(form.officeUse?.balanceAmount)) / Number(form.officeUse?.totalFee)) * 100)}%` }}
+                                                    style={{ width: `${Math.min(100, ((Number(form.officeUse?.totalFee) - Number(form.officeUse?.balanceAmount)) / (Number(form.officeUse?.totalFee) || 1)) * 100)}%` }}
                                                 ></div>
                                             </div>
                                         </td>
@@ -325,9 +336,9 @@ export default function AllFormsPage() {
                                             <div key={i} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl border-l-4 border-green-500">
                                                 <div>
                                                     <p className="text-xs font-black uppercase text-slate-800">Installment #{i + 1}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400">{new Date(h.datePaid).toLocaleDateString()}</p>
+                                                    <p className="text-[9px] font-bold text-slate-400">{new Date(h.datePaid || h.createdAt).toLocaleDateString()}</p>
                                                 </div>
-                                                <p className="font-black text-sm text-green-600">+ Rs. {h.amountPaid}</p>
+                                                <p className="font-black text-sm text-green-600">+ Rs. {h.amountPaid || h.amount}</p>
                                             </div>
                                         ))}
                                     </div>
