@@ -2,7 +2,7 @@
 import { useState, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import axios from 'axios';
-import { ArrowLeft, User, BookOpen, CreditCard, School, Loader2, Mail, Clock, Globe } from 'lucide-react';
+import { ArrowLeft, User, BookOpen, CreditCard, School, Loader2, Mail, Clock, Globe, Calendar } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 
 function FormContent() {
@@ -20,9 +20,9 @@ function FormContent() {
         mobileNo: '',
         address: '',
         email: '',
-        course: '',     // Required by backend
-        duration: '',   // Required by backend
-        purpose: 'Pakistan', // NEW FIELD
+        course: '',
+        duration: '',
+        purpose: 'Pakistan',
         dob: '',
         age: '',
         gender: 'Male',
@@ -37,7 +37,8 @@ function FormContent() {
         registrationFee: 0,
         balanceAmount: 0,
         noOfInstallments: '1',
-        installmentAmount: 0
+        installmentAmount: 0,
+        installmentsData: [] as { amount: number; dueDate: string }[]
     });
 
     const logoSrc = selectedType === 'Education Zone' ? '/ez-logo.png' : '/dib-logo.png';
@@ -47,22 +48,42 @@ function FormContent() {
         const total = Number(formData.totalFee) || 0;
         const paid = Number(formData.registrationFee) || 0;
         const balance = total - paid;
-        const installments = Number(formData.noOfInstallments) || 1;
+        const count = Number(formData.noOfInstallments) || 1;
+        const perMonth = balance > 0 ? Math.round(balance / count) : 0;
+
+        const newInstallments = Array.from({ length: count }).map((_, i) => ({
+            amount: perMonth,
+            dueDate: formData.installmentsData[i]?.dueDate || ''
+        }));
 
         setFormData(prev => ({
             ...prev,
             balanceAmount: balance,
-            installmentAmount: balance > 0 ? Math.round(balance / installments) : 0
+            installmentAmount: perMonth,
+            installmentsData: newInstallments
         }));
     }, [formData.totalFee, formData.registrationFee, formData.noOfInstallments]);
 
+    const handleInstallmentDateChange = (index: number, date: string) => {
+        const updated = [...formData.installmentsData];
+        updated[index].dueDate = date;
+        setFormData({ ...formData, installmentsData: updated });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
 
+        // Basic Validation
+        if (!formData.course || !formData.duration) {
+            toast.error("Please fill Course and Duration!");
+            return;
+        }
+
+        setLoading(true);
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
         try {
+            // Mapping UI state to Mongoose Schema
             const payload = {
                 formType: selectedType,
                 studentName: formData.studentName?.trim().toUpperCase(),
@@ -76,7 +97,7 @@ function FormContent() {
                 dob: formData.dob,
                 course: formData.course?.trim(),
                 duration: formData.duration?.trim(),
-                purpose: formData.purpose, // NEW FIELD ADDED TO PAYLOAD
+                purpose: formData.purpose,
                 qualification: {
                     matric: {
                         board: formData.matricBoard || "N/A",
@@ -89,12 +110,20 @@ function FormContent() {
                         year: formData.interYear || "N/A"
                     }
                 },
+                // Installments are ROOT level in your schema, NOT inside officeUse
+                installments: formData.installmentsData.map(inst => ({
+                    amount: inst.amount,
+                    dueDate: inst.dueDate || new Date(),
+                    status: 'Pending'
+                })),
                 officeUse: {
                     totalFee: formData.totalFee.toString(),
                     registrationFee: formData.registrationFee.toString(),
                     balanceAmount: formData.balanceAmount.toString(),
                     noOfInstallments: formData.noOfInstallments.toString(),
-                    monthlyInstallment: formData.installmentAmount.toString()
+                    monthlyInstallment: formData.installmentAmount.toString(),
+                    classSchedule: "TBA",
+                    issuedBy: "Admin"
                 }
             };
 
@@ -105,14 +134,14 @@ function FormContent() {
                 }
             });
 
-            if (res.status === 201 || res.data.success) {
-                toast.success(`Registered! ID: ${res.data.student?.regNo || 'Success'}`);
+            if (res.data.success) {
+                toast.success(`Registered Successfully! RegNo: ${res.data.student?.regNo}`);
                 setTimeout(() => router.push('/admin/dashboard'), 2000);
             }
         } catch (err: any) {
-            console.error("FULL ERROR:", err);
-            const msg = err.response?.data?.error || err.response?.data?.message || "Server Connection Failed";
-            toast.error(`FAILED: ${msg}`);
+            console.error("AXIOS ERROR DETAILS:", err.response?.data);
+            const errorMsg = err.response?.data?.message || err.response?.data?.error || "Submission Failed";
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }
@@ -178,7 +207,6 @@ function FormContent() {
                             value={formData.cnic} onChange={e => setFormData({ ...formData, cnic: e.target.value })} />
                     </div>
 
-                    {/* EMAIL FIELD */}
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
                             <Mail size={10} /> Student Email
@@ -187,7 +215,6 @@ function FormContent() {
                             value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} />
                     </div>
 
-                    {/* COURSE FIELD */}
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
                             <BookOpen size={10} /> Course Applied For *
@@ -196,7 +223,6 @@ function FormContent() {
                             value={formData.course} onChange={e => setFormData({ ...formData, course: e.target.value })} />
                     </div>
 
-                    {/* DURATION FIELD */}
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
                             <Clock size={10} /> Course Duration *
@@ -205,7 +231,6 @@ function FormContent() {
                             value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} />
                     </div>
 
-                    {/* PURPOSE FIELD - NEW */}
                     <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
                             <Globe size={10} /> Purpose *
@@ -229,12 +254,6 @@ function FormContent() {
                             value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} />
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">City</label>
-                        <input className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
-                            value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} />
-                    </div>
-
                     <div className="md:col-span-3 space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Address</label>
                         <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
@@ -242,7 +261,7 @@ function FormContent() {
                     </div>
                 </section>
 
-                {/* Section 2: Education */}
+                {/* Section 2: Education History */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
                     <div className="md:col-span-2 flex items-center gap-2 border-b pb-2 mb-2">
                         <School size={18} className="text-slate-400" />
@@ -267,40 +286,69 @@ function FormContent() {
                     ))}
                 </section>
 
-                {/* Section 3: Fees */}
-                <section className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="md:col-span-4 flex items-center gap-2 border-b-2 pb-2">
+                {/* Section 3: Fee Plan & Installments */}
+                <section className="space-y-6">
+                    <div className="flex items-center gap-2 border-b-2 pb-2">
                         <CreditCard size={18} className="text-slate-400" />
-                        <h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">3. Fee Plan</h3>
+                        <h3 className="font-black text-slate-700 uppercase tracking-widest text-xs">3. Fee Plan & Installments</h3>
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Total Fee</label>
-                        <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
-                            value={formData.totalFee} onChange={e => setFormData({ ...formData, totalFee: Number(e.target.value) })} />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Total Fee</label>
+                            <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
+                                value={formData.totalFee} onChange={e => setFormData({ ...formData, totalFee: Number(e.target.value) })} />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Paid Amount</label>
+                            <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
+                                value={formData.registrationFee} onChange={e => setFormData({ ...formData, registrationFee: Number(e.target.value) })} />
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">No. of Installments</label>
+                            <select className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
+                                value={formData.noOfInstallments} onChange={e => setFormData({ ...formData, noOfInstallments: e.target.value })}>
+                                {[1, 2, 3, 4, 6, 8, 12].map(n => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-red-400 uppercase ml-1">Remaining Balance</label>
+                            <input readOnly className="w-full bg-red-50 p-3.5 rounded-2xl font-bold text-red-600 outline-none" value={formData.balanceAmount} />
+                        </div>
                     </div>
 
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Paid Amount</label>
-                        <input type="number" className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
-                            value={formData.registrationFee} onChange={e => setFormData({ ...formData, registrationFee: Number(e.target.value) })} />
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Installments</label>
-                        <select className="w-full bg-slate-50 p-3.5 rounded-2xl font-bold border-2 border-transparent focus:border-slate-200"
-                            value={formData.noOfInstallments} onChange={e => setFormData({ ...formData, noOfInstallments: e.target.value })}>
-                            {[1, 2, 3, 4, 6, 8, 12].map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                    </div>
-
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-red-400 uppercase ml-1">Remaining</label>
-                        <input readOnly className="w-full bg-red-50 p-3.5 rounded-2xl font-bold text-red-600 outline-none" value={formData.balanceAmount} />
-                    </div>
+                    {/* DYNAMIC INSTALLMENT DUE DATES UI */}
+                    {formData.balanceAmount > 0 && (
+                        <div className="p-6 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 space-y-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Calendar size={14} className="text-slate-400" />
+                                <h4 className="text-[10px] font-black text-slate-500 uppercase">Set Installment Due Dates</h4>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                                {formData.installmentsData.map((inst, index) => (
+                                    <div key={index} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-2">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase">Inst. #{index + 1}</span>
+                                            <span className="text-xs font-bold text-indigo-600">Rs. {inst.amount}</span>
+                                        </div>
+                                        <input
+                                            type="date"
+                                            required
+                                            className="text-xs font-bold p-2 bg-slate-50 rounded-lg outline-none border focus:border-indigo-300 transition-all"
+                                            value={inst.dueDate}
+                                            onChange={(e) => handleInstallmentDateChange(index, e.target.value)}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <button disabled={loading} type="submit"
-                        className={`md:col-span-4 flex justify-center items-center gap-3 text-white font-black py-5 rounded-[2rem] mt-4 shadow-xl transition-all active:scale-95 disabled:opacity-50 ${isEZ ? 'bg-orange-600 hover:bg-orange-700' : 'bg-indigo-900 hover:bg-indigo-950'}`}>
+                        className={`w-full flex justify-center items-center gap-3 text-white font-black py-5 rounded-[2rem] mt-4 shadow-xl transition-all active:scale-95 disabled:opacity-50 ${isEZ ? 'bg-orange-600 hover:bg-orange-700' : 'bg-indigo-900 hover:bg-indigo-950'}`}>
                         {loading ? <Loader2 className="animate-spin" /> : "REGISTER STUDENT"}
                     </button>
                 </section>

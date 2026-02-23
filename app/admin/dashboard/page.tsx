@@ -5,7 +5,8 @@ import {
     Users, FileText, Printer, Trash2, Search, PlusCircle,
     LayoutDashboard, X, Eye, Calendar,
     GraduationCap, RefreshCcw, Edit3, Layers,
-    XCircle, CheckCircle, ChevronLeft, ChevronRight, Mail, Lock, Unlock
+    XCircle, CheckCircle, ChevronLeft, ChevronRight, Mail, Lock, Unlock,
+    AlertTriangle, MessageCircle
 } from 'lucide-react';
 import { useReactToPrint } from 'react-to-print';
 import { useRouter } from 'next/navigation';
@@ -33,6 +34,7 @@ interface Form {
     cnic?: string;
     status?: string;
     createdAt: string;
+    parentPhone?: string; // Added for WhatsApp alerts
 }
 
 interface Agent {
@@ -57,6 +59,51 @@ interface Stats {
     totalTeachers: number;
 }
 
+// --- NEW COMPONENT: PAYMENT ALERT BANNER ---
+const PaymentAlertBanner = ({ alerts }: { alerts: any[] }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    if (!alerts || alerts.length === 0) return null;
+
+    return (
+        <div className="max-w-7xl mx-auto mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className={`bg-white border-l-4 border-red-500 shadow-xl rounded-[2rem] overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px]' : 'max-h-[80px]'}`}>
+                <div className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-red-50 text-red-600 rounded-2xl animate-pulse"><AlertTriangle size={24} /></div>
+                        <div>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Fee Reminders</h3>
+                            <p className="text-[10px] text-slate-500 font-bold uppercase">{alerts.length} Pending Installments Found</p>
+                        </div>
+                    </div>
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase transition-all">
+                        {isExpanded ? 'Close' : 'View Alerts'}
+                    </button>
+                </div>
+                {isExpanded && (
+                    <div className="p-6 pt-0 overflow-y-auto max-h-[400px]">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {alerts.map((student: any) => (
+                                <div key={student._id} className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-100 group">
+                                    <div className="truncate mr-2">
+                                        <p className="text-xs font-black text-slate-800 uppercase truncate">{student.studentName}</p>
+                                        <p className="text-[8px] text-red-500 font-bold uppercase">Due/Overdue</p>
+                                    </div>
+                                    <button
+                                        onClick={() => window.open(`https://wa.me/${student.parentPhone}?text=Asalam-o-Alaikum, Education System ki taraf se reminder hai ke aapki installment due hai.`, '_blank')}
+                                        className="p-2 bg-emerald-500 text-white rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-200 shrink-0"
+                                    >
+                                        <MessageCircle size={14} />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
 export default function AdminDashboard() {
     const router = useRouter();
     const [viewMode, setViewMode] = useState<'students' | 'agents' | 'teachers'>('students');
@@ -64,6 +111,7 @@ export default function AdminDashboard() {
     const [forms, setForms] = useState<Form[]>([]);
     const [agents, setAgents] = useState<Agent[]>([]);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
+    const [paymentAlerts, setPaymentAlerts] = useState<any[]>([]);
     const [filteredForms, setFilteredForms] = useState<Form[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<'All' | 'Education Zone' | 'DIB Education System'>('All');
@@ -92,18 +140,23 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [resStats, resForms, resAgents, resTeachers] = await Promise.all([
+            // Using allSettled so that if one API fails (like alerts), the rest still load
+            const results = await Promise.allSettled([
                 api.get('/admin/stats'),
                 api.get('/admin/forms'),
                 api.get('/admin/agents'),
-                api.get('/admin/teachers')
+                api.get('/admin/teachers'),
+                api.get('/admin/payment-alerts')
             ]);
-            setStats(resStats.data);
-            setForms(resForms.data.forms || []);
-            setAgents(resAgents.data.agents || []);
-            setTeachers(resTeachers.data.teachers || []);
+
+            if (results[0].status === 'fulfilled') setStats(results[0].value.data);
+            if (results[1].status === 'fulfilled') setForms(results[1].value.data.forms || []);
+            if (results[2].status === 'fulfilled') setAgents(results[2].value.data.agents || []);
+            if (results[3].status === 'fulfilled') setTeachers(results[3].value.data.teachers || []);
+            if (results[4].status === 'fulfilled') setPaymentAlerts(results[4].value.data.alerts || []);
+
         } catch (error) {
-            toast.error("Data fetch karne mein masla hua");
+            toast.error("Data synchronization error");
         } finally {
             setLoading(false);
         }
@@ -159,9 +212,7 @@ export default function AdminDashboard() {
     const filteredTeachers = teachers.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const totalPages = Math.ceil(filteredForms.length / itemsPerPage);
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentStudents = filteredForms.slice(indexOfFirstItem, indexOfLastItem);
+    const currentStudents = filteredForms.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const passCount = useMemo(() => forms.filter(f => f.assignedSubjects?.some(s => s.status === 'Pass')).length, [forms]);
     const failCount = useMemo(() => forms.filter(f => f.assignedSubjects?.some(s => s.status === 'Fail')).length, [forms]);
@@ -190,12 +241,14 @@ export default function AdminDashboard() {
             await api.patch(`/admin/agents/toggle-status/${id}`);
             toast.success("Agent status updated");
             fetchData();
-        }
-        catch (error) { toast.error("Toggle status failed!"); }
+        } catch (error) { toast.error("Toggle status failed!"); }
     };
 
     return (
         <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10 text-slate-900 font-sans">
+            {/* ALERT SYSTEM */}
+            <PaymentAlertBanner alerts={paymentAlerts} />
+
             {/* HEADER */}
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-6">
                 <div>
@@ -211,7 +264,6 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    {/* CUSTOM DATE INPUTS - Only visible when Custom is selected */}
                     {timeFilter === 'Custom' && (
                         <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4">
                             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-[10px] font-bold outline-none p-1" />
@@ -230,7 +282,7 @@ export default function AdminDashboard() {
                         <PlusCircle size={18} /> Create Student
                     </button>
 
-                    <button onClick={fetchData} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 shadow-sm"><RefreshCcw size={20} className={loading ? "animate-spin" : ""} /></button>
+                    <button onClick={fetchData} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 shadow-sm transition-all active:scale-95"><RefreshCcw size={20} className={loading ? "animate-spin" : ""} /></button>
                 </div>
             </div>
 
@@ -242,13 +294,13 @@ export default function AdminDashboard() {
                     <h3 className="text-3xl font-black text-slate-800">{stats?.totalForms || 0}</h3>
                 </div>
 
-                <div onClick={() => setStatusFilter(statusFilter === 'Pass' ? 'All' : 'Pass')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Pass' ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-slate-100'}`}>
+                <div onClick={() => setStatusFilter(statusFilter === 'Pass' ? 'All' : 'Pass')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Pass' ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-slate-100 hover:border-emerald-200'}`}>
                     <div className={`w-10 h-10 ${statusFilter === 'Pass' ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600'} rounded-xl flex items-center justify-center mb-3`}><CheckCircle /></div>
                     <p className={`text-[9px] font-black uppercase mb-1 ${statusFilter === 'Pass' ? 'text-emerald-100' : 'text-slate-400'}`}>Pass Status</p>
                     <h3 className="text-3xl font-black">{passCount}</h3>
                 </div>
 
-                <div onClick={() => setStatusFilter(statusFilter === 'Fail' ? 'All' : 'Fail')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Fail' ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100'}`}>
+                <div onClick={() => setStatusFilter(statusFilter === 'Fail' ? 'All' : 'Fail')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Fail' ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100 hover:border-red-200'}`}>
                     <div className={`w-10 h-10 ${statusFilter === 'Fail' ? 'bg-white/20' : 'bg-red-50 text-red-600'} rounded-xl flex items-center justify-center mb-3`}><XCircle /></div>
                     <p className={`text-[9px] font-black uppercase mb-1 ${statusFilter === 'Fail' ? 'text-red-100' : 'text-slate-400'}`}>Fail Status</p>
                     <h3 className="text-3xl font-black">{failCount}</h3>
@@ -270,40 +322,29 @@ export default function AdminDashboard() {
             {/* MAIN DATA TABLE */}
             <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
                 <div className="p-8 border-b flex flex-col lg:flex-row justify-between items-center gap-8 bg-slate-50/30">
-                    <div className="flex items-center gap-4">
-                        <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
-                            {viewMode === 'students' ? (
-                                (['All', 'Education Zone', 'DIB Education System'] as const).map((tab) => (
-                                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}</button>
-                                ))
-                            ) : <div className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-600 bg-slate-100 rounded-xl">Managing {viewMode}</div>}
-                        </div>
+                    <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+                        {viewMode === 'students' ? (
+                            (['All', 'Education Zone', 'DIB Education System'] as const).map((tab) => (
+                                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}</button>
+                            ))
+                        ) : <div className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-600">Managing {viewMode}</div>}
                     </div>
 
                     <div className="relative w-full lg:w-1/3">
                         <Search className="absolute left-5 top-4 text-slate-400" size={18} />
-                        <input type="text" placeholder={`Search ${viewMode}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 focus:border-blue-500 rounded-2xl text-sm font-bold outline-none shadow-sm" />
+                        <input type="text" placeholder={`Search ${viewMode}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 focus:border-blue-500 rounded-2xl text-sm font-bold outline-none shadow-sm transition-all" />
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
-                            {viewMode === 'students' ? (
-                                <tr>
-                                    <th className="px-8 py-5">Identity</th>
-                                    <th className="px-8 py-5">Course</th>
-                                    <th className="px-8 py-5">Grading</th>
-                                    <th className="px-8 py-5 text-right">Actions</th>
-                                </tr>
-                            ) : (
-                                <tr>
-                                    <th className="px-8 py-5">Profile Info</th>
-                                    <th className="px-8 py-5">Contact Details</th>
-                                    <th className="px-8 py-5">Performance</th>
-                                    <th className="px-8 py-5 text-right">Settings</th>
-                                </tr>
-                            )}
+                            <tr>
+                                <th className="px-8 py-5">{viewMode === 'students' ? 'Identity' : 'Profile Info'}</th>
+                                <th className="px-8 py-5">{viewMode === 'students' ? 'Course' : 'Contact Details'}</th>
+                                <th className="px-8 py-5">{viewMode === 'students' ? 'Grading' : 'Performance'}</th>
+                                <th className="px-8 py-5 text-right">Actions</th>
+                            </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                             {loading ? (
@@ -316,7 +357,7 @@ export default function AdminDashboard() {
                                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-lg ${form.formType === 'Education Zone' ? 'bg-orange-500' : 'bg-blue-600'}`}>{form.studentName?.charAt(0)}</div>
                                                 <div>
                                                     <p className="font-black text-slate-800 uppercase leading-none">{form.studentName}</p>
-                                                    <p className="text-[10px] text-blue-600 font-bold mt-1 uppercase">{form.regNo || 'PENDING'}</p>
+                                                    <p className="text-[10px] text-blue-600 font-bold mt-1 uppercase tracking-tighter">{form.regNo || 'PENDING'}</p>
                                                 </div>
                                             </div>
                                         </td>
@@ -329,7 +370,7 @@ export default function AdminDashboard() {
                                                 {form.assignedSubjects?.map((sub, idx) => (
                                                     <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
                                                         <span className="text-[8px] font-black text-slate-400 uppercase truncate max-w-[60px]">{sub.subjectName}</span>
-                                                        <select value={sub.status || "Pending"} onChange={(e) => handleSubjectStatusChange(form._id, sub.subjectName, e.target.value)} className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none ${sub.status === 'Pass' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : sub.status === 'Fail' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                                        <select value={sub.status || "Pending"} onChange={(e) => handleSubjectStatusChange(form._id, sub.subjectName, e.target.value)} className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none ${sub.status === 'Pass' ? 'bg-emerald-50 text-emerald-600' : sub.status === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-slate-50'}`}>
                                                             <option value="Pending">Pending</option>
                                                             <option value="Pass">Pass</option>
                                                             <option value="Fail">Fail</option>
@@ -351,30 +392,17 @@ export default function AdminDashboard() {
                             ) : viewMode === 'agents' ? (
                                 filteredAgents.map((agent) => (
                                     <tr key={agent._id} className="hover:bg-slate-50/80 transition-all group">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-lg ${agent.isBlocked ? 'bg-red-500' : 'bg-indigo-600'}`}>{agent.name.charAt(0)}</div>
-                                                <div>
-                                                    <p className="font-black text-slate-800 uppercase leading-none">{agent.name}</p>
-                                                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${agent.isBlocked ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                                        {agent.isBlocked ? 'Blocked' : 'Active Agent'}
-                                                    </span>
-                                                </div>
+                                        <td className="px-8 py-6 flex items-center gap-4">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white ${agent.isBlocked ? 'bg-red-500' : 'bg-indigo-600'}`}>{agent.name.charAt(0)}</div>
+                                            <div>
+                                                <p className="font-black text-slate-800 uppercase">{agent.name}</p>
+                                                <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${agent.isBlocked ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{agent.isBlocked ? 'Blocked' : 'Active'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6">
-                                            <p className="text-xs font-black text-slate-700 flex items-center gap-1.5"><Mail size={14} className="text-slate-400" /> {agent.email}</p>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-2">
-                                                <div className="px-4 py-2 bg-indigo-50 rounded-xl">
-                                                    <p className="text-[10px] text-indigo-400 font-black uppercase">Submissions</p>
-                                                    <p className="text-xl font-black text-indigo-700">{agent.formsCount}</p>
-                                                </div>
-                                            </div>
-                                        </td>
+                                        <td className="px-8 py-6 text-xs font-black"><Mail size={14} className="inline mr-2 text-slate-400" />{agent.email}</td>
+                                        <td className="px-8 py-6 text-xl font-black text-indigo-700">{agent.formsCount}</td>
                                         <td className="px-8 py-6 text-right">
-                                            <button onClick={() => toggleAgentStatus(agent._id)} className={`p-3 rounded-xl transition-all ${agent.isBlocked ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'bg-red-50 text-red-600 hover:bg-red-100'}`}>
+                                            <button onClick={() => toggleAgentStatus(agent._id)} className={`p-3 rounded-xl ${agent.isBlocked ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50'}`}>
                                                 {agent.isBlocked ? <Unlock size={18} /> : <Lock size={18} />}
                                             </button>
                                         </td>
@@ -383,27 +411,13 @@ export default function AdminDashboard() {
                             ) : (
                                 filteredTeachers.map((teacher) => (
                                     <tr key={teacher._id} className="hover:bg-slate-50/80 transition-all group">
-                                        <td className="px-8 py-6">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-lg bg-emerald-600">{teacher.name.charAt(0)}</div>
-                                                <div>
-                                                    <p className="font-black text-slate-800 uppercase leading-none">{teacher.name}</p>
-                                                    <p className="text-[10px] text-emerald-600 font-bold mt-1 uppercase">{teacher.specialization}</p>
-                                                </div>
-                                            </div>
+                                        <td className="px-8 py-6 flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">{teacher.name.charAt(0)}</div>
+                                            <div><p className="font-black uppercase">{teacher.name}</p><p className="text-[10px] text-emerald-600 font-bold uppercase">{teacher.specialization}</p></div>
                                         </td>
-                                        <td className="px-8 py-6">
-                                            <p className="text-xs font-black text-slate-700 flex items-center gap-1.5"><Mail size={14} className="text-slate-400" /> {teacher.email}</p>
-                                        </td>
-                                        <td className="px-8 py-6">
-                                            <div className="px-4 py-2 bg-emerald-50 rounded-xl inline-block">
-                                                <p className="text-[10px] text-emerald-400 font-black uppercase">Students</p>
-                                                <p className="text-xl font-black text-emerald-700">{teacher.assignedStudentsCount}</p>
-                                            </div>
-                                        </td>
-                                        <td className="px-8 py-6 text-right">
-                                            <button className="p-3 bg-slate-50 text-slate-400 rounded-xl hover:text-blue-600"><Edit3 size={18} /></button>
-                                        </td>
+                                        <td className="px-8 py-6 text-xs font-black"><Mail size={14} className="inline mr-2 text-slate-400" />{teacher.email}</td>
+                                        <td className="px-8 py-6 text-xl font-black text-emerald-700">{teacher.assignedStudentsCount}</td>
+                                        <td className="px-8 py-6 text-right"><button className="p-3 bg-slate-50 rounded-xl hover:text-blue-600 transition-all"><Edit3 size={18} /></button></td>
                                     </tr>
                                 ))
                             )}
@@ -414,10 +428,10 @@ export default function AdminDashboard() {
                 {/* PAGINATION */}
                 {viewMode === 'students' && totalPages > 1 && (
                     <div className="p-8 border-t flex justify-between items-center bg-slate-50/50">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Page {currentPage} of {totalPages}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase">Page {currentPage} of {totalPages}</p>
                         <div className="flex gap-2">
-                            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-3 bg-white border border-slate-200 rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronLeft size={18} /></button>
-                            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-3 bg-white border border-slate-200 rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronRight size={18} /></button>
+                            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronLeft size={18} /></button>
+                            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronRight size={18} /></button>
                         </div>
                     </div>
                 )}
@@ -425,16 +439,16 @@ export default function AdminDashboard() {
 
             {/* MODALS */}
             {showAssignModal && studentToAssign && (
-                <AssignTeacherModal student={studentToAssign} onClose={() => { setShowAssignModal(false); setStudentToAssign(null); }} onSuccess={() => { setShowAssignModal(false); setStudentToAssign(null); fetchData(); }} />
+                <AssignTeacherModal student={studentToAssign} onClose={() => { setShowAssignModal(false); setStudentToAssign(null); }} onSuccess={() => { setShowAssignModal(false); fetchData(); }} />
             )}
 
             {isPreviewOpen && selectedForm && (
                 <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-5xl h-[92vh] rounded-[3rem] overflow-hidden flex flex-col">
+                    <div className="bg-white w-full max-w-5xl h-[92vh] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl">
                         <div className="p-8 border-b flex justify-between items-center bg-white">
-                            <h2 className="font-black uppercase text-2xl text-slate-800">Preview & Print</h2>
+                            <h2 className="font-black uppercase text-2xl text-slate-800">Student File Preview</h2>
                             <div className="flex gap-4">
-                                <button onClick={() => handlePrint()} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase shadow-lg"><Printer size={16} /> Print</button>
+                                <button onClick={() => handlePrint()} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase shadow-lg hover:bg-blue-700 transition-all"><Printer size={16} /> Print</button>
                                 <button onClick={() => setIsPreviewOpen(false)} className="p-3 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
                             </div>
                         </div>

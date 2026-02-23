@@ -4,7 +4,7 @@ import axios from 'axios';
 import {
     Search, Plus, X, TrendingUp, Wallet, Users,
     Eye, RefreshCcw, CreditCard,
-    UserCheck, Clock, User, MapPin, GraduationCap, Calendar
+    UserCheck, Clock, User, MapPin, GraduationCap, Calendar, AlertCircle
 } from 'lucide-react';
 
 export default function AllFormsPage() {
@@ -73,11 +73,10 @@ export default function AllFormsPage() {
 
         try {
             const token = localStorage.getItem('token');
-            // FIX: Removed ':id' and corrected path to match backend: /api/admin/forms/:id/installment
             const res = await axios.post(`http://localhost:5000/api/admin/forms/${studentId}/installment`,
                 {
-                    amount: Number(amount),      // Backend expects 'amount'
-                    amountPaid: Number(amount),  // Keeping for compatibility
+                    amount: Number(amount),
+                    amountPaid: Number(amount),
                     paymentDate: new Date()
                 },
                 { headers: { Authorization: `Bearer ${token}` } }
@@ -86,7 +85,7 @@ export default function AllFormsPage() {
             if (res.status === 200 || res.status === 201) {
                 alert("✅ Installment Added Successfully!");
                 setShowModal(false);
-                fetchForms(); // Refresh the list and stats
+                fetchForms();
             }
         } catch (err: any) {
             console.error("Payment Error:", err.response?.data || err.message);
@@ -318,12 +317,13 @@ export default function AllFormsPage() {
 
                                 <div className="bg-white border-2 border-slate-100 rounded-[2.5rem] overflow-hidden flex flex-col">
                                     <div className="bg-slate-100 px-6 py-4 flex justify-between items-center">
-                                        <span className="text-[10px] font-black uppercase">Payment Timeline</span>
+                                        <span className="text-[10px] font-black uppercase">Payment Timeline & Due Dates</span>
                                         <span className="bg-slate-900 text-white px-2 py-0.5 rounded text-[9px] font-bold">
                                             {selectedStudent.officeUse?.noOfInstallments || 1} Installments Plan
                                         </span>
                                     </div>
-                                    <div className="p-6 space-y-4 max-h-[250px] overflow-y-auto">
+                                    <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto">
+                                        {/* Initial Deposit Always Shown */}
                                         <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border-l-4 border-blue-500">
                                             <div>
                                                 <p className="text-xs font-black uppercase text-slate-800">Initial Deposit</p>
@@ -332,15 +332,50 @@ export default function AllFormsPage() {
                                             <p className="font-black text-sm">Rs. {selectedStudent.officeUse?.registrationFee}</p>
                                         </div>
 
-                                        {selectedStudent.feeHistory?.map((h: any, i: number) => (
-                                            <div key={i} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl border-l-4 border-green-500">
-                                                <div>
-                                                    <p className="text-xs font-black uppercase text-slate-800">Installment #{i + 1}</p>
-                                                    <p className="text-[9px] font-bold text-slate-400">{new Date(h.datePaid || h.createdAt).toLocaleDateString()}</p>
+                                        {/* 🟢 DYNAMIC INSTALLMENTS (Paid + Pending with Due Dates) */}
+                                        {selectedStudent.installments?.length > 0 ? (
+                                            selectedStudent.installments.map((inst: any, i: number) => {
+                                                const isOverdue = inst.status === 'Pending' && new Date(inst.dueDate) < new Date();
+                                                return (
+                                                    <div key={i} className={`flex justify-between items-center p-4 rounded-2xl border-l-4 border transition-all ${inst.status === 'Paid' ? 'bg-green-50 border-green-500 border-l-green-600' :
+                                                            isOverdue ? 'bg-red-50 border-red-200 border-l-red-600' : 'bg-white border-slate-100 border-l-slate-400'
+                                                        }`}>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xs font-black uppercase text-slate-800 tracking-tighter">Inst. #{i + 1}</p>
+                                                                {inst.status === 'Paid' ? (
+                                                                    <span className="text-[8px] bg-green-600 text-white px-1.5 py-0.5 rounded-full font-bold uppercase">PAID</span>
+                                                                ) : (
+                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase ${isOverdue ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-200 text-slate-600'}`}>
+                                                                        {isOverdue ? 'OVERDUE' : 'PENDING'}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-[9px] font-bold text-slate-500 mt-0.5 flex items-center gap-1">
+                                                                <Clock size={10} />
+                                                                Due: {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                            </p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className={`font-black text-sm ${inst.status === 'Paid' ? 'text-green-600' : 'text-slate-700'}`}>
+                                                                Rs. {inst.amount?.toLocaleString()}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })
+                                        ) : (
+                                            /* Fallback to old feeHistory if installments array is empty */
+                                            selectedStudent.feeHistory?.map((h: any, i: number) => (
+                                                <div key={i} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl border-l-4 border-green-500">
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase text-slate-800">Installment #{i + 1}</p>
+                                                        <p className="text-[9px] font-bold text-slate-400">{new Date(h.datePaid || h.date || h.createdAt).toLocaleDateString()}</p>
+                                                    </div>
+                                                    <p className="font-black text-sm text-green-600">+ Rs. {h.amountPaid || h.amount}</p>
                                                 </div>
-                                                <p className="font-black text-sm text-green-600">+ Rs. {h.amountPaid || h.amount}</p>
-                                            </div>
-                                        ))}
+                                            ))
+                                        )}
                                     </div>
 
                                     <div className="p-6 bg-slate-50 mt-auto">

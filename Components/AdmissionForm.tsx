@@ -11,7 +11,7 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
 
     // --- PURE HEX COLORS (Anti-Crash) ---
     const primaryHex = isEZ ? '#ea580c' : '#3730a3';
-    const bgSoftHex = '#f9fafb'; // Gray-50 substitute
+    const bgSoftHex = '#f9fafb';
 
     // Logo Logic
     const logoSrc = isEZ ? '/ez-logo.png' : '/dib-logo.png';
@@ -21,14 +21,17 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
         return path.split('.').reduce((obj, key) => obj?.[key], data) || defaultValue;
     };
 
-    // --- UPDATED INSTALLMENT LOGIC ---
+    // --- FEE LOGIC ---
     const totalFee = Number(data?.officeUse?.totalFee) || 0;
     const registrationFee = Number(data?.officeUse?.registrationFee) || 0;
     const totalPaidFromHistory = data?.feeHistory?.reduce((sum: number, item: any) => sum + (Number(item.amountPaid) || 0), 0) || 0;
 
-    // Grand Total Paid = Admission Fee + All installments from history
     const grandTotalPaid = registrationFee + totalPaidFromHistory;
     const remainingBalance = totalFee - grandTotalPaid;
+
+    // --- DUE DATES LOGIC ---
+    // Filter only pending installments to show on form
+    const pendingInstallments = data?.installments?.filter((inst: any) => inst.status === 'pending') || [];
 
     return (
         <div
@@ -103,7 +106,7 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                 </div>
             </div>
 
-            {/* --- PURPOSE FIELD (NEW) --- */}
+            {/* --- PURPOSE FIELD --- */}
             <div className="relative z-10 mb-8">
                 <div className="flex items-center gap-3 border-b-2 border-gray-300 pb-2 w-full">
                     <span className="font-black uppercase text-gray-600">Admission Purpose:</span>
@@ -169,7 +172,7 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                 </table>
             </div>
 
-            {/* --- FEE SECTION (FIXED COLORS & LOGIC) --- */}
+            {/* --- FEE SECTION --- */}
             <div className="relative z-10 mt-10 border-4 rounded-[2.5rem] p-8" style={{ borderColor: primaryHex, backgroundColor: 'rgba(249, 250, 251, 0.5)' }}>
                 <div className="absolute -top-5 left-12 bg-white px-8 border-2 rounded-full py-2 text-[12px] font-black italic shadow-md uppercase tracking-widest" style={{ borderColor: primaryHex, color: primaryHex }}>
                     Fee & Office Record
@@ -204,6 +207,24 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                         </div>
                     </div>
                 </div>
+
+                {/* --- INSTALLMENT DUE DATES (NEWLY ADDED) --- */}
+                {pendingInstallments.length > 0 && (
+                    <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-300">
+                        <p className="text-[10px] mb-2 text-gray-500 italic">Upcoming Installments Schedule:</p>
+                        <div className="grid grid-cols-4 gap-4">
+                            {pendingInstallments.slice(0, 4).map((inst: any, idx: number) => (
+                                <div key={idx} className="border border-gray-200 p-2 rounded-lg bg-white text-center">
+                                    <span className="block text-[8px] text-gray-400">Inst. {idx + 1}</span>
+                                    <span className="block font-bold text-blue-700">RS. {inst.amount}</span>
+                                    <span className="block text-[9px] text-gray-600 font-mono">
+                                        {new Date(inst.dueDate).toLocaleDateString('en-GB')}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* --- SIGNATURES --- */}

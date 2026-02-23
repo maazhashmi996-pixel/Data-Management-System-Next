@@ -1,10 +1,9 @@
 "use client";
-import { useState, useEffect, Suspense } from 'react'; // Suspense added
+import { useState, useEffect, Suspense } from 'react';
 import axios from 'axios';
 import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, UserPlus, Phone, Briefcase, Calendar, X, UserCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// 1. Asli Form Logic ko alag component mein rakha
 function CreateEnrollmentContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -39,7 +38,8 @@ function CreateEnrollmentContent() {
             noOfInstallments: '1',
             monthlyInstallment: '0',
             classSchedule: '',
-            issuedBy: 'Admin'
+            issuedBy: 'Admin',
+            installmentStartDate: new Date().toISOString().split('T')[0] // NEW FIELD
         }
     });
 
@@ -226,7 +226,7 @@ function CreateEnrollmentContent() {
                             <DollarSign className="text-orange-500" size={22} />
                             <p className="font-black text-sm uppercase tracking-widest">Fee Structure</p>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-slate-900 p-6 rounded-[2rem] text-white">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-slate-900 p-6 rounded-[2rem] text-white">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-1">TOTAL FEE</label>
                                 <input type="number" name="totalFee" placeholder="0" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-lg text-white" required />
@@ -238,6 +238,10 @@ function CreateEnrollmentContent() {
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-1">INSTALLMENTS</label>
                                 <input type="number" name="noOfInstallments" min="1" onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-black text-lg" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 ml-1">START DATE</label>
+                                <input type="date" name="installmentStartDate" value={formData.officeUse.installmentStartDate} onChange={(e) => handleChange(e, 'officeUse')} className="w-full p-3 bg-white/10 border border-white/20 rounded-xl font-bold text-xs" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-1">MONTHLY</label>
@@ -272,7 +276,6 @@ function CreateEnrollmentContent() {
     );
 }
 
-// 2. Main Export - Isme Suspense Wrap Kiya hai build fix karne ke liye
 export default function CreateEnrollment() {
     return (
         <Suspense fallback={
@@ -286,4 +289,4 @@ export default function CreateEnrollment() {
             <CreateEnrollmentContent />
         </Suspense>
     );
-}   
+}
