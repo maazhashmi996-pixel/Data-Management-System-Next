@@ -1,10 +1,11 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react'; // Suspense added
 import axios from 'axios';
-import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, MapPin, Calendar, Mail, Globe } from 'lucide-react';
+import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, UserPlus, Phone, Briefcase, Calendar, X, UserCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-export default function CreateEnrollment() {
+// 1. Asli Form Logic ko alag component mein rakha
+function CreateEnrollmentContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const forcedType = searchParams.get('type') as 'Education Zone' | 'DIB Education System';
@@ -23,7 +24,7 @@ export default function CreateEnrollment() {
         age: '',
         course: '',
         duration: '',
-        purpose: 'Pakistan', // DEFAULT VALUE
+        purpose: 'Pakistan',
         formType: forcedType || 'Education Zone',
         admissionType: 'Regular',
         date: new Date().toISOString().split('T')[0],
@@ -154,11 +155,11 @@ export default function CreateEnrollment() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-2">DATE OF BIRTH</label>
-                                <input type="date" name="dob" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                                <input type="date" name="dob" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-black" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-2">GENDER</label>
-                                <select name="gender" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold">
+                                <select name="gender" onChange={handleChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-black">
                                     <option value="Male">Male</option>
                                     <option value="Female">Female</option>
                                     <option value="Other">Other</option>
@@ -212,7 +213,6 @@ export default function CreateEnrollment() {
                                 <option value="6 Months">6 Months</option>
                                 <option value="1 Year">1 Year</option>
                             </select>
-                            {/* --- ADDED PURPOSE FIELD --- */}
                             <select name="purpose" onChange={handleChange} value={formData.purpose} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" required>
                                 <option value="Pakistan">Pakistan</option>
                                 <option value="Study Abroad">Study Abroad</option>
@@ -249,7 +249,7 @@ export default function CreateEnrollment() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-2">REMAINING BALANCE</label>
-                                <input type="text" value={formData.officeUse.balanceAmount} readOnly className="w-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-black text-xl" />
+                                <input type="text" value={formData.officeUse.balanceAmount} readOnly className="w-full p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 font-black text-xl outline-none" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 ml-2">CLASS SCHEDULE</label>
@@ -269,5 +269,21 @@ export default function CreateEnrollment() {
                 </form>
             </div>
         </div>
+    );
+}
+
+// 2. Main Export - Isme Suspense Wrap Kiya hai build fix karne ke liye
+export default function CreateEnrollment() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-black uppercase tracking-widest text-xl">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-t-blue-500 border-slate-700 rounded-full animate-spin"></div>
+                    Loading Enrollment Form...
+                </div>
+            </div>
+        }>
+            <CreateEnrollmentContent />
+        </Suspense>
     );
 }
