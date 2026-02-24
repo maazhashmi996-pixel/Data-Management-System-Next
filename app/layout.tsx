@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css"; // Aapki css file ka path
-
-export const metadata: Metadata = {
-  title: "Data Management System",
-  description: "Student Enrollment Portal",
-};
+import LoginPage from "./login/page";
 
 export default function RootLayout({
   children,
@@ -14,6 +10,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <LoginPage />
         {children}
       </body>
     </html>
