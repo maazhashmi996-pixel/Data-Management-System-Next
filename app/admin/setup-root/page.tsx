@@ -15,7 +15,7 @@ export default function AdminSetup() {
 
         try {
             // Iske liye backend par ek special route chahiye hoga: /api/admin/setup-root
-            const res = await axios.post('http://localhost:5000/api/admin/setup-root', formData);
+            const res = await axios.post('https://data-management-system-node-production.up.railway.app/api/admin/setup-root', formData);
             alert("✅ Root Admin Created Successfully!");
             router.push('/login');
         } catch (err: any) {
