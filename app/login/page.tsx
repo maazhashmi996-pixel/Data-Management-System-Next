@@ -1,6 +1,7 @@
 "use client";
 import { useState } from 'react';
-import axios from 'axios';
+// Purana axios hata kar central api import ki hai
+import api from '@/lib/axios';
 import { useRouter } from 'next/navigation';
 import { LogIn, Mail, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
@@ -15,19 +16,18 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            // Backend API call
-            const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
+            // CENTRAL API use ho rahi hai - Ab URL ka rona khatam
+            const res = await api.post('/auth/login', { email, password });
 
             // 1. Token aur Full User Data save karna
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('user', JSON.stringify(res.data.user));
 
-            // 2. Role ko separate save karna (Redirects mein kaam ayega)
-            const userRole = res.data.user.role; // e.g., 'admin', 'agent', 'teacher'
+            // 2. Role ko separate save karna
+            const userRole = res.data.user.role;
             localStorage.setItem('role', userRole);
 
             // 3. --- ROLE BASED NAVIGATION ---
-            // Backend se aane wale roles ke lowercase/uppercase ka khayal rakhte hue
             const role = userRole.toLowerCase();
 
             if (role === 'admin') {
@@ -40,7 +40,7 @@ export default function LoginPage() {
                 router.push('/teacher/dashboard');
             }
             else {
-                router.push('/'); // Fallback agar role match na ho
+                router.push('/');
             }
 
         } catch (err: any) {
