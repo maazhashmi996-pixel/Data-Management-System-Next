@@ -45,8 +45,8 @@ export default function Sidebar() {
     const agentMenu = [
         { name: 'My Dashboard', path: '/agent/dashboard', icon: <LayoutDashboard size={20} /> },
         { name: 'New Admission', path: '/agent/new-form', icon: <PlusCircle size={20} /> },
-        { name: 'Daily Visitors', path: '/agent/visitors', icon: <UserPlus size={20} /> },
-        { name: 'Attendance Record', path: '/agent/attendance', icon: <CalendarCheck size={20} /> }, // Agent ke liye view record
+        { name: 'Daily Visitors', path: '/admin/visitors', icon: <UserPlus size={20} /> },
+        { name: 'Attendance Record', path: '/admin/attendance', icon: <CalendarCheck size={20} /> }, // Agent ke liye view record
         { name: 'Exam Booking', path: '/agent/exam-booking', icon: <BookOpenCheck size={20} /> },
         { name: 'My Submissions', path: '/agent/my-forms', icon: <ClipboardList size={20} /> },
     ];
