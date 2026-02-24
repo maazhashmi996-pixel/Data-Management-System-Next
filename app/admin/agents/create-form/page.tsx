@@ -1,7 +1,7 @@
 "use client";
 import { useState, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import axios from 'axios';
+import api from '@/lib/axios'; // Central API instance use kar rahe hain
 import { ArrowLeft, User, BookOpen, CreditCard, School, Loader2, Mail, Clock, Globe, Calendar } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 
@@ -73,17 +73,14 @@ function FormContent() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Basic Validation
         if (!formData.course || !formData.duration) {
             toast.error("Please fill Course and Duration!");
             return;
         }
 
         setLoading(true);
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
         try {
-            // Mapping UI state to Mongoose Schema
             const payload = {
                 formType: selectedType,
                 studentName: formData.studentName?.trim().toUpperCase(),
@@ -110,7 +107,6 @@ function FormContent() {
                         year: formData.interYear || "N/A"
                     }
                 },
-                // Installments are ROOT level in your schema, NOT inside officeUse
                 installments: formData.installmentsData.map(inst => ({
                     amount: inst.amount,
                     dueDate: inst.dueDate || new Date(),
@@ -127,12 +123,8 @@ function FormContent() {
                 }
             };
 
-            const res = await axios.post('http://localhost:5000/api/admin/add-form', payload, {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            // YAHAN LOCALHOST HATA DIYA HAI
+            const res = await api.post('/admin/add-form', payload);
 
             if (res.data.success) {
                 toast.success(`Registered Successfully! RegNo: ${res.data.student?.regNo}`);
@@ -153,7 +145,6 @@ function FormContent() {
         <div className="max-w-5xl mx-auto bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100 mb-10">
             <Toaster position="top-right" />
 
-            {/* Header */}
             <div className={`p-8 text-white flex justify-between items-center transition-all duration-500 ${isEZ ? 'bg-orange-600' : 'bg-indigo-900'}`}>
                 <div className="flex items-center gap-5">
                     <div className="bg-white p-2 rounded-2xl shadow-lg">
@@ -170,7 +161,6 @@ function FormContent() {
                 </button>
             </div>
 
-            {/* System Toggle */}
             <div className="bg-slate-50 p-6 border-b flex justify-center gap-4">
                 {['DIB Education System', 'Education Zone'].map((sys) => (
                     <button key={sys} type="button" onClick={() => setSelectedType(sys)}
@@ -181,8 +171,6 @@ function FormContent() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-8 space-y-8 text-black">
-
-                {/* Section 1: Personal Info & Course */}
                 <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="md:col-span-3 flex items-center gap-2 border-b-2 pb-2">
                         <User size={18} className="text-slate-400" />
@@ -261,7 +249,6 @@ function FormContent() {
                     </div>
                 </section>
 
-                {/* Section 2: Education History */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 bg-slate-50 rounded-[2rem] border border-slate-200">
                     <div className="md:col-span-2 flex items-center gap-2 border-b pb-2 mb-2">
                         <School size={18} className="text-slate-400" />
@@ -286,7 +273,6 @@ function FormContent() {
                     ))}
                 </section>
 
-                {/* Section 3: Fee Plan & Installments */}
                 <section className="space-y-6">
                     <div className="flex items-center gap-2 border-b-2 pb-2">
                         <CreditCard size={18} className="text-slate-400" />
@@ -320,7 +306,6 @@ function FormContent() {
                         </div>
                     </div>
 
-                    {/* DYNAMIC INSTALLMENT DUE DATES UI */}
                     {formData.balanceAmount > 0 && (
                         <div className="p-6 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200 space-y-4">
                             <div className="flex items-center gap-2 mb-2">
