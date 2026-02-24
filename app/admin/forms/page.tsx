@@ -1,79 +1,73 @@
 "use client";
-import { useEffect, useState, useMemo } from 'react';
+
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import {
     Search, Plus, X, TrendingUp, Wallet, Users,
     Eye, RefreshCcw, CreditCard,
-    UserCheck, Clock, User, MapPin, GraduationCap, Calendar, AlertCircle
+    UserCheck, Clock, User, MapPin, GraduationCap, Calendar, AlertCircle, Loader2
 } from 'lucide-react';
 
+// --- PRODUCTION CONFIGURATION ---
+// In production, use your actual domain. Localhost is just a fallback.
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 export default function AllFormsPage() {
+    // --- STATES ---
     const [forms, setForms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-
-    // --- 🟢 MODAL STATES ---
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [showModal, setShowModal] = useState(false);
-
-    // --- FILTERS STATE ---
     const [selectedCSR, setSelectedCSR] = useState("All");
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    useEffect(() => { fetchForms(); }, []);
-
-    const fetchForms = async () => {
+    // --- FETCH DATA ---
+    const fetchForms = useCallback(async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/admin/forms', {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+
+            if (!token) {
+                console.error("No authentication token found");
+                // Optional: redirect to login
+            }
+
+            const res = await axios.get(`${API_BASE_URL}/api/admin/forms`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            if (res.data && res.data.forms) setForms(res.data.forms);
-            else if (Array.isArray(res.data)) setForms(res.data);
-        } catch (err) {
-            console.error("Error fetching", err);
+
+            // Handling different API response structures
+            const data = res.data?.forms || (Array.isArray(res.data) ? res.data : []);
+            setForms(data);
+        } catch (err: any) {
+            console.error("Fetch Error:", err.response?.data || err.message);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
+    useEffect(() => {
+        fetchForms();
+    }, [fetchForms]);
+
+    // --- HANDLERS ---
     const clearFilters = () => {
         setSearchTerm("");
         setSelectedCSR("All");
     };
 
-    // --- ANALYTICS ---
-    const stats = useMemo(() => {
-        let revenue = 0;
-        let pending = 0;
-        forms.forEach(f => {
-            const regFee = Number(f.officeUse?.registrationFee) || 0;
-            const installments = f.feeHistory?.reduce((sum: number, h: any) => sum + (Number(h.amountPaid) || 0), 0) || 0;
-            revenue += (regFee + installments);
-            pending += (Number(f.officeUse?.balanceAmount) || 0);
-        });
-        return { total: forms.length, revenue, pending };
-    }, [forms]);
-
-    const filteredForms = forms.filter(f => {
-        const searchLower = searchTerm.toLowerCase();
-        const agentName = (f.agentName || f.officeUse?.issuedBy || "Admin").toLowerCase();
-        const studentName = (f.studentName || "").toLowerCase();
-
-        const matchesSearch = studentName.includes(searchLower) || agentName.includes(searchLower);
-        const matchesCSR = selectedCSR === "All" || (f.agentName === selectedCSR || f.officeUse?.issuedBy === selectedCSR);
-
-        return matchesSearch && matchesCSR;
-    });
-
-    // --- 🟢 FIXED INSTALLMENT HANDLER ---
     const handleAddInstallment = async (studentId: string) => {
         const amount = prompt("Enter Installment Amount (PKR):");
-        if (!amount || isNaN(Number(amount))) return;
+        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+            if (amount) alert("Please enter a valid amount.");
+            return;
+        }
 
         try {
+            setIsProcessing(true);
             const token = localStorage.getItem('token');
-            const res = await axios.post(`http://localhost:5000/api/admin/forms/${studentId}/installment`,
+            const res = await axios.post(`${API_BASE_URL}/api/admin/forms/${studentId}/installment`,
                 {
                     amount: Number(amount),
                     amountPaid: Number(amount),
@@ -83,58 +77,104 @@ export default function AllFormsPage() {
             );
 
             if (res.status === 200 || res.status === 201) {
-                alert("✅ Installment Added Successfully!");
+                alert("✅ Installment recorded successfully!");
                 setShowModal(false);
-                fetchForms();
+                fetchForms(); // Refresh the list
             }
         } catch (err: any) {
-            console.error("Payment Error:", err.response?.data || err.message);
-            alert(`❌ Payment Failed: ${err.response?.data?.message || "Server Error"}`);
+            const errorMsg = err.response?.data?.message || "Server Error. Please try again.";
+            alert(`❌ Payment Failed: ${errorMsg}`);
+        } finally {
+            setIsProcessing(false);
         }
     };
 
+    // --- ANALYTICS CALCULATIONS ---
+    const stats = useMemo(() => {
+        let revenue = 0;
+        let pending = 0;
+        forms.forEach(f => {
+            const regFee = Number(f.officeUse?.registrationFee) || 0;
+            const installments = f.feeHistory?.reduce((sum: number, h: any) => sum + (Number(h.amountPaid) || 0), 0) || 0;
+            const instArraySum = f.installments?.filter((i: any) => i.status === 'Paid').reduce((sum: number, h: any) => sum + (Number(h.amount) || 0), 0) || 0;
+
+            revenue += (regFee + installments + instArraySum);
+            pending += (Number(f.officeUse?.balanceAmount) || 0);
+        });
+        return { total: forms.length, revenue, pending };
+    }, [forms]);
+
+    // --- FILTER LOGIC ---
+    const filteredForms = useMemo(() => {
+        return forms.filter(f => {
+            const searchLower = searchTerm.toLowerCase();
+            const agentName = (f.agentName || f.officeUse?.issuedBy || "Admin").toLowerCase();
+            const studentName = (f.studentName || "").toLowerCase();
+
+            const matchesSearch = studentName.includes(searchLower) || agentName.includes(searchLower);
+            const matchesCSR = selectedCSR === "All" || (f.agentName === selectedCSR || f.officeUse?.issuedBy === selectedCSR);
+
+            return matchesSearch && matchesCSR;
+        });
+    }, [forms, searchTerm, selectedCSR]);
+
     return (
-        <div className="p-4 md:p-8 bg-slate-50 min-h-screen text-black font-sans">
+        <div className="p-4 md:p-8 bg-slate-50 min-h-screen text-black font-sans selection:bg-blue-100">
             <div className="max-w-7xl mx-auto">
 
-                {/* Stats Cards */}
+                {/* --- STATS SECTION --- */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-blue-600 flex items-center justify-between">
-                        <div><p className="text-slate-400 font-black text-xs uppercase tracking-widest">Total Students</p><h3 className="text-4xl font-black">{stats.total}</h3></div>
-                        <Users className="text-blue-100" size={50} />
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-blue-600 flex items-center justify-between group transition-all hover:-translate-y-1">
+                        <div>
+                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Total Students</p>
+                            <h3 className="text-4xl font-black mt-1">{stats.total}</h3>
+                        </div>
+                        <Users className="text-blue-100 group-hover:text-blue-200 transition-colors" size={60} />
                     </div>
-                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-green-500 flex items-center justify-between">
-                        <div><p className="text-slate-400 font-black text-xs uppercase tracking-widest">Revenue Collected</p><h3 className="text-3xl font-black text-green-600">Rs. {stats.revenue.toLocaleString()}</h3></div>
-                        <TrendingUp className="text-green-100" size={50} />
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-green-500 flex items-center justify-between group transition-all hover:-translate-y-1">
+                        <div>
+                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Revenue Collected</p>
+                            <h3 className="text-3xl font-black mt-1 text-green-600">Rs. {stats.revenue.toLocaleString()}</h3>
+                        </div>
+                        <TrendingUp className="text-green-100 group-hover:text-green-200 transition-colors" size={60} />
                     </div>
-                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-red-500 flex items-center justify-between">
-                        <div><p className="text-slate-400 font-black text-xs uppercase tracking-widest">Total Pending</p><h3 className="text-3xl font-black text-red-600">Rs. {stats.pending.toLocaleString()}</h3></div>
-                        <Wallet className="text-red-100" size={50} />
+                    <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-red-500 flex items-center justify-between group transition-all hover:-translate-y-1">
+                        <div>
+                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Total Pending</p>
+                            <h3 className="text-3xl font-black mt-1 text-red-600">Rs. {stats.pending.toLocaleString()}</h3>
+                        </div>
+                        <Wallet className="text-red-100 group-hover:text-red-200 transition-colors" size={60} />
                     </div>
                 </div>
 
-                {/* Header */}
-                <div className="flex justify-between items-center mb-8 bg-slate-900 p-6 rounded-[2rem] text-white shadow-2xl">
-                    <h1 className="text-2xl font-black italic tracking-tighter uppercase">Education Zone ERP</h1>
-                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Master Database</div>
+                {/* --- HEADER --- */}
+                <div className="flex flex-col md:flex-row justify-between items-center mb-8 bg-slate-900 p-8 rounded-[2.5rem] text-white shadow-2xl gap-4">
+                    <div>
+                        <h1 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Education Zone <span className="text-blue-500">ERP</span></h1>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.3em] mt-2">Centralized Management System</p>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white/5 px-6 py-3 rounded-2xl border border-white/10">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Server Live</span>
+                    </div>
                 </div>
 
-                {/* Filters */}
-                <div className="bg-white p-6 rounded-[2rem] shadow-lg mb-8 space-y-4">
+                {/* --- FILTERS --- */}
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-lg mb-8 border border-slate-100">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div className="relative col-span-1 md:col-span-2">
-                            <Search className="absolute left-3 top-3.5 text-slate-400" size={18} />
+                            <Search className="absolute left-4 top-4 text-slate-400" size={20} />
                             <input
                                 type="text"
-                                placeholder="Search by Student or Agent Name..."
-                                className="w-full pl-10 p-3 bg-slate-100 rounded-xl font-bold outline-none border focus:border-blue-500"
+                                placeholder="Search by Student or Agent..."
+                                className="w-full pl-12 pr-4 py-4 bg-slate-100 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all focus:bg-white"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                         <select
                             value={selectedCSR}
-                            className="bg-slate-900 text-white p-3 rounded-xl font-black outline-none"
+                            className="bg-slate-900 text-white p-4 rounded-2xl font-black outline-none cursor-pointer hover:bg-black transition-colors appearance-none"
                             onChange={(e) => setSelectedCSR(e.target.value)}
                         >
                             <option value="All">All CSRs / Agents</option>
@@ -142,250 +182,235 @@ export default function AllFormsPage() {
                         </select>
                         <button
                             onClick={clearFilters}
-                            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-xs font-black flex items-center justify-center gap-1 uppercase hover:bg-red-100"
+                            className="px-6 py-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 uppercase hover:bg-red-600 hover:text-white transition-all group"
                         >
-                            <RefreshCcw size={14} /> Reset
+                            <RefreshCcw size={16} className="group-hover:rotate-180 transition-transform duration-500" /> Reset Filters
                         </button>
                     </div>
                 </div>
 
-                {/* Main Table */}
-                <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border">
-                    <table className="w-full text-left">
-                        <thead className="bg-slate-50 border-b">
-                            <tr>
-                                <th className="p-8 text-[10px] font-black text-slate-400 uppercase">Student / ID</th>
-                                <th className="p-8 text-[10px] font-black text-slate-400 uppercase">Applied Course</th>
-                                <th className="p-8 text-[10px] font-black text-slate-400 uppercase">Fee Status</th>
-                                <th className="p-8 text-[10px] font-black text-slate-400 uppercase text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                            {loading ? (
-                                <tr><td colSpan={4} className="p-10 text-center font-bold">Loading Data...</td></tr>
-                            ) : filteredForms.length > 0 ? (
-                                filteredForms.map((form) => (
-                                    <tr key={form._id} className="hover:bg-slate-50 transition-all">
-                                        <td className="p-8">
-                                            <p className="font-black uppercase">{form.studentName}</p>
-                                            <div className="flex items-center gap-1 text-[10px] font-bold text-blue-500">
-                                                <UserCheck size={12} /> {form.agentName || form.officeUse?.issuedBy || "Admin"}
+                {/* --- MAIN TABLE --- */}
+                <div className="bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-slate-100">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-50 border-b">
+                                <tr>
+                                    <th className="p-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Student Identity</th>
+                                    <th className="p-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Course Architecture</th>
+                                    <th className="p-8 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fee Progress</th>
+                                    <th className="p-8 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan={4} className="p-24 text-center">
+                                            <div className="flex flex-col items-center gap-4">
+                                                <Loader2 className="animate-spin text-blue-600" size={40} />
+                                                <p className="font-black text-slate-400 uppercase tracking-widest text-xs">Synchronizing Database...</p>
                                             </div>
-                                        </td>
-                                        <td className="p-8">
-                                            <p className="font-bold uppercase text-sm">{form.course}</p>
-                                            <p className="text-[10px] text-slate-400 font-bold">{form.duration || 'Duration N/A'}</p>
-                                        </td>
-                                        <td className="p-8">
-                                            <p className="font-black text-sm text-red-600">Bal: Rs. {Number(form.officeUse?.balanceAmount).toLocaleString()}</p>
-                                            <div className="w-24 h-1.5 bg-slate-100 rounded-full mt-1">
-                                                <div
-                                                    className="h-full bg-green-500 rounded-full"
-                                                    style={{ width: `${Math.min(100, ((Number(form.officeUse?.totalFee) - Number(form.officeUse?.balanceAmount)) / (Number(form.officeUse?.totalFee) || 1)) * 100)}%` }}
-                                                ></div>
-                                            </div>
-                                        </td>
-                                        <td className="p-8 flex justify-center">
-                                            <button
-                                                onClick={() => { setSelectedStudent(form); setShowModal(true); }}
-                                                className="flex items-center gap-2 px-6 py-3 bg-blue-50 text-blue-600 rounded-xl font-black text-xs hover:bg-blue-600 hover:text-white transition-all shadow-sm"
-                                            >
-                                                <Eye size={18} /> VIEW PROFILE
-                                            </button>
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr><td colSpan={4} className="p-10 text-center font-bold text-slate-400">No records found.</td></tr>
-                            )}
-                        </tbody>
-                    </table>
+                                ) : filteredForms.length > 0 ? (
+                                    filteredForms.map((form) => (
+                                        <tr key={form._id} className="hover:bg-blue-50/40 transition-all group">
+                                            <td className="p-8">
+                                                <p className="font-black text-slate-900 uppercase text-lg tracking-tighter">{form.studentName}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-black rounded uppercase">
+                                                        {form.agentName || form.officeUse?.issuedBy || "Admin"}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="p-8">
+                                                <p className="font-bold uppercase text-sm text-slate-700">{form.course}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">{form.duration || 'Flexible Duration'}</p>
+                                            </td>
+                                            <td className="p-8">
+                                                <p className="font-black text-sm text-red-600 mb-2 flex items-center gap-1">
+                                                    Due: Rs. {Number(form.officeUse?.balanceAmount || 0).toLocaleString()}
+                                                </p>
+                                                <div className="w-full max-w-[150px] h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-green-500 rounded-full transition-all duration-1000"
+                                                        style={{ width: `${Math.min(100, ((Number(form.officeUse?.totalFee || 0) - Number(form.officeUse?.balanceAmount || 0)) / (Number(form.officeUse?.totalFee) || 1)) * 100)}%` }}
+                                                    ></div>
+                                                </div>
+                                            </td>
+                                            <td className="p-8 text-center">
+                                                <button
+                                                    onClick={() => { setSelectedStudent(form); setShowModal(true); }}
+                                                    className="inline-flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] hover:bg-blue-600 transition-all shadow-lg hover:shadow-blue-200 uppercase tracking-widest"
+                                                >
+                                                    <Eye size={16} /> Open Profile
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={4} className="p-24 text-center">
+                                            <div className="flex flex-col items-center gap-2 opacity-30">
+                                                <AlertCircle size={48} />
+                                                <p className="font-black uppercase tracking-widest">No Records Found</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             {/* --- 🟢 STUDENT PROFILE MODAL --- */}
             {showModal && selectedStudent && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[999] flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-6xl rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[999] flex items-center justify-center p-4">
+                    <div className="bg-white w-full max-w-6xl rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in duration-300">
 
                         {/* Modal Header */}
-                        <div className={`p-8 text-white flex justify-between items-center ${selectedStudent.formType === 'DIB Education System' ? 'bg-indigo-900' : 'bg-orange-600'}`}>
-                            <div className="flex items-center gap-4">
-                                <div className="bg-white p-2 rounded-2xl">
-                                    <User className="text-slate-900" size={30} />
+                        <div className={`p-10 text-white flex justify-between items-start ${selectedStudent.formType === 'DIB Education System' ? 'bg-indigo-950' : 'bg-orange-600'}`}>
+                            <div className="flex items-center gap-8">
+                                <div className="bg-white p-4 rounded-3xl shadow-2xl transform -rotate-6">
+                                    <User className="text-slate-900" size={40} />
                                 </div>
                                 <div>
-                                    <h2 className="text-3xl font-black uppercase italic tracking-tighter leading-tight">{selectedStudent.studentName}</h2>
-                                    <div className="flex gap-4">
-                                        <p className="text-white/80 font-bold text-[10px] uppercase tracking-widest">Type: {selectedStudent.formType}</p>
-                                        <p className="text-white/80 font-bold text-[10px] uppercase tracking-widest">Issued By: {selectedStudent.agentName || "Admin"}</p>
+                                    <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none">{selectedStudent.studentName}</h2>
+                                    <div className="flex flex-wrap gap-4 mt-3">
+                                        <span className="bg-white/20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">ID: {selectedStudent._id.slice(-6).toUpperCase()}</span>
+                                        <span className="bg-white/20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">{selectedStudent.formType}</span>
                                     </div>
                                 </div>
                             </div>
-                            <button onClick={() => setShowModal(false)} className="p-3 bg-white/10 rounded-full hover:bg-red-500 transition-all"><X size={24} /></button>
+                            <button onClick={() => setShowModal(false)} className="p-4 bg-white/10 rounded-full hover:bg-red-500 transition-all border border-white/20"><X size={24} /></button>
                         </div>
 
-                        <div className="p-8 md:p-12 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-10">
+                        <div className="p-8 md:p-12 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-12 custom-scrollbar">
 
-                            {/* LEFT COLUMN: PERSONAL & ACADEMIC */}
-                            <div className="lg:col-span-7 space-y-10">
-                                <div>
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4 flex items-center gap-2 tracking-[0.2em]"><User size={14} /> Personal Profile</h4>
-                                    <div className="grid grid-cols-2 gap-6 bg-slate-50 p-8 rounded-[2.5rem]">
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">Father's Name</p>
-                                            <p className="font-black text-slate-800 uppercase">{selectedStudent.fatherName}</p>
+                            {/* LEFT: INFO */}
+                            <div className="lg:col-span-7 space-y-12">
+                                <section>
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-6 flex items-center gap-2 tracking-[0.3em] border-b pb-4"><User size={16} className="text-blue-500" /> Biological Information</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 bg-slate-50 p-10 rounded-[3rem]">
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Father's Name</p>
+                                            <p className="font-black text-slate-800 uppercase text-lg">{selectedStudent.fatherName}</p>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">CNIC / B-Form</p>
-                                            <p className="font-black text-slate-800">{selectedStudent.cnic}</p>
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Identity (CNIC)</p>
+                                            <p className="font-black text-slate-800 text-lg">{selectedStudent.cnic}</p>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">Mobile Number</p>
-                                            <p className="font-black text-slate-800">{selectedStudent.mobileNo}</p>
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Phone / Mobile</p>
+                                            <p className="font-black text-blue-600 text-lg">{selectedStudent.mobileNo}</p>
                                         </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase">Email Address</p>
-                                            <p className="font-black text-slate-800 truncate">{selectedStudent.email || 'N/A'}</p>
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Digital Mail</p>
+                                            <p className="font-black text-slate-800 truncate text-lg">{selectedStudent.email || 'N/A'}</p>
                                         </div>
-                                        <div className="col-span-2">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><MapPin size={10} /> Residential Address</p>
-                                            <p className="font-bold text-slate-700">{selectedStudent.address || 'Address not provided'}</p>
+                                        <div className="col-span-full border-t pt-6">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest flex items-center gap-1"><MapPin size={12} /> Permanent Residence</p>
+                                            <p className="font-bold text-slate-700 text-base leading-relaxed">{selectedStudent.address || 'Address not provided in records'}</p>
                                         </div>
                                     </div>
-                                </div>
+                                </section>
 
-                                <div>
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-4 flex items-center gap-2 tracking-[0.2em]"><GraduationCap size={14} /> Academic Background</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div className="bg-blue-50/50 border border-blue-100 p-6 rounded-3xl">
-                                            <p className="text-[10px] font-black text-blue-600 uppercase mb-2">Matric / O-Level</p>
-                                            <p className="text-xs font-bold">Board: <span className="text-slate-900 uppercase">{selectedStudent.qualification?.matric?.board || 'N/A'}</span></p>
-                                            <p className="text-xs font-bold">Marks: <span className="text-slate-900">{selectedStudent.qualification?.matric?.marks || 'N/A'}</span></p>
-                                            <p className="text-xs font-bold">Year: <span className="text-slate-900">{selectedStudent.qualification?.matric?.year || 'N/A'}</span></p>
+                                <section>
+                                    <h4 className="text-[10px] font-black text-slate-400 uppercase mb-6 flex items-center gap-2 tracking-[0.3em] border-b pb-4"><GraduationCap size={16} className="text-purple-600" /> Academic Credentials</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="bg-blue-50/50 border-2 border-blue-100 p-8 rounded-[2.5rem]">
+                                            <p className="text-[10px] font-black text-blue-600 uppercase mb-4 tracking-[0.2em]">Secondary School</p>
+                                            <div className="space-y-2 text-sm font-bold">
+                                                <p className="flex justify-between">Board: <span className="text-slate-900 uppercase">{selectedStudent.qualification?.matric?.board || 'N/A'}</span></p>
+                                                <p className="flex justify-between">Marks: <span className="text-slate-900">{selectedStudent.qualification?.matric?.marks || 'N/A'}</span></p>
+                                                <p className="flex justify-between">Year: <span className="text-slate-900">{selectedStudent.qualification?.matric?.year || 'N/A'}</span></p>
+                                            </div>
                                         </div>
-                                        <div className="bg-purple-50/50 border border-purple-100 p-6 rounded-3xl">
-                                            <p className="text-[10px] font-black text-purple-600 uppercase mb-2">Inter / A-Level</p>
-                                            <p className="text-xs font-bold">Board: <span className="text-slate-900 uppercase">{selectedStudent.qualification?.inter?.board || 'N/A'}</span></p>
-                                            <p className="text-xs font-bold">Marks: <span className="text-slate-900">{selectedStudent.qualification?.inter?.marks || 'N/A'}</span></p>
-                                            <p className="text-xs font-bold">Year: <span className="text-slate-900">{selectedStudent.qualification?.inter?.year || 'N/A'}</span></p>
+                                        <div className="bg-purple-50/50 border-2 border-purple-100 p-8 rounded-[2.5rem]">
+                                            <p className="text-[10px] font-black text-purple-600 uppercase mb-4 tracking-[0.2em]">Higher Secondary</p>
+                                            <div className="space-y-2 text-sm font-bold">
+                                                <p className="flex justify-between">Board: <span className="text-slate-900 uppercase">{selectedStudent.qualification?.inter?.board || 'N/A'}</span></p>
+                                                <p className="flex justify-between">Marks: <span className="text-slate-900">{selectedStudent.qualification?.inter?.marks || 'N/A'}</span></p>
+                                                <p className="flex justify-between">Year: <span className="text-slate-900">{selectedStudent.qualification?.inter?.year || 'N/A'}</span></p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-
-                                <div className="bg-slate-900 text-white p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
-                                    <Calendar className="absolute -right-4 -bottom-4 text-white/5" size={120} />
-                                    <div className="grid grid-cols-2 gap-8 relative z-10">
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Enrolled Course</p>
-                                            <h3 className="text-xl font-black uppercase text-blue-400">{selectedStudent.course}</h3>
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Duration</p>
-                                            <h3 className="text-xl font-black">{selectedStudent.duration || selectedStudent.officeUse?.duration || 'N/A'}</h3>
-                                        </div>
-                                        <div className="col-span-2">
-                                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Class Schedule</p>
-                                            <h3 className="text-lg font-bold">{selectedStudent.officeUse?.classSchedule || 'Timing not set'}</h3>
-                                        </div>
-                                    </div>
-                                </div>
+                                </section>
                             </div>
 
-                            {/* RIGHT COLUMN: FINANCIALS */}
+                            {/* RIGHT: LEDGER */}
                             <div className="lg:col-span-5 space-y-8">
-                                <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2 tracking-[0.2em]"><CreditCard size={14} /> Fee Ledger</h4>
+                                <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2 tracking-[0.3em] border-b pb-4"><CreditCard size={16} className="text-green-600" /> Financial Audit</h4>
 
                                 <div className="grid grid-cols-2 gap-4">
-                                    <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200">
-                                        <p className="text-[9px] font-black text-slate-400 uppercase">Total Fee</p>
-                                        <p className="text-lg font-black text-slate-800">Rs. {Number(selectedStudent.officeUse?.totalFee).toLocaleString()}</p>
+                                    <div className="bg-slate-950 text-white p-6 rounded-3xl shadow-xl">
+                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Gross Total</p>
+                                        <p className="text-2xl font-black">Rs. {Number(selectedStudent.officeUse?.totalFee).toLocaleString()}</p>
                                     </div>
-                                    <div className="bg-indigo-50 p-5 rounded-3xl border border-indigo-100">
-                                        <p className="text-[9px] font-black text-indigo-600 uppercase">Monthly Pay</p>
-                                        <p className="text-lg font-black text-indigo-700">Rs. {Number(selectedStudent.officeUse?.monthlyInstallment || 0).toLocaleString()}</p>
-                                    </div>
-                                    <div className="bg-green-50 p-5 rounded-3xl border border-green-100">
-                                        <p className="text-[9px] font-black text-green-600 uppercase">Paid (Initial)</p>
-                                        <p className="text-lg font-black text-green-700">Rs. {Number(selectedStudent.officeUse?.registrationFee).toLocaleString()}</p>
-                                    </div>
-                                    <div className="bg-red-50 p-5 rounded-3xl border border-red-100">
-                                        <p className="text-[9px] font-black text-red-600 uppercase">Balance Due</p>
-                                        <p className="text-lg font-black text-red-700">Rs. {Number(selectedStudent.officeUse?.balanceAmount).toLocaleString()}</p>
+                                    <div className="bg-red-600 text-white p-6 rounded-3xl shadow-xl">
+                                        <p className="text-[8px] font-black text-red-100 uppercase tracking-widest mb-1">Outstanding</p>
+                                        <p className="text-2xl font-black">Rs. {Number(selectedStudent.officeUse?.balanceAmount).toLocaleString()}</p>
                                     </div>
                                 </div>
 
-                                <div className="bg-white border-2 border-slate-100 rounded-[2.5rem] overflow-hidden flex flex-col">
-                                    <div className="bg-slate-100 px-6 py-4 flex justify-between items-center">
-                                        <span className="text-[10px] font-black uppercase">Payment Timeline & Due Dates</span>
-                                        <span className="bg-slate-900 text-white px-2 py-0.5 rounded text-[9px] font-bold">
-                                            {selectedStudent.officeUse?.noOfInstallments || 1} Installments Plan
-                                        </span>
+                                <div className="bg-white border-2 border-slate-100 rounded-[3rem] overflow-hidden flex flex-col shadow-2xl min-h-[400px]">
+                                    <div className="bg-slate-50 px-8 py-5 border-b flex justify-between items-center">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Transaction History</span>
+                                        <div className="flex items-center gap-1 px-3 py-1 bg-slate-900 text-white rounded-full text-[8px] font-black uppercase">
+                                            <Clock size={10} /> {selectedStudent.officeUse?.noOfInstallments || 1} Installment Plan
+                                        </div>
                                     </div>
-                                    <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto">
-                                        {/* Initial Deposit Always Shown */}
-                                        <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border-l-4 border-blue-500">
+
+                                    <div className="p-8 space-y-4 overflow-y-auto max-h-[400px] custom-scrollbar">
+                                        {/* Registration */}
+                                        <div className="flex justify-between items-center p-5 bg-blue-50/50 rounded-2xl border-l-4 border-blue-600 shadow-sm">
                                             <div>
-                                                <p className="text-xs font-black uppercase text-slate-800">Initial Deposit</p>
-                                                <p className="text-[9px] font-bold text-slate-400">Paid at Registration</p>
+                                                <p className="text-xs font-black uppercase text-slate-800">Registration Fee</p>
+                                                <p className="text-[9px] font-bold text-blue-600/70 uppercase">Paid at Enrollment</p>
                                             </div>
-                                            <p className="font-black text-sm">Rs. {selectedStudent.officeUse?.registrationFee}</p>
+                                            <p className="font-black text-lg text-blue-700">Rs. {Number(selectedStudent.officeUse?.registrationFee).toLocaleString()}</p>
                                         </div>
 
-                                        {/* 🟢 DYNAMIC INSTALLMENTS (Paid + Pending with Due Dates) */}
-                                        {selectedStudent.installments?.length > 0 ? (
+                                        {/* Dynamic Payments */}
+                                        {(selectedStudent.installments?.length > 0) ? (
                                             selectedStudent.installments.map((inst: any, i: number) => {
-                                                const isOverdue = inst.status === 'Pending' && new Date(inst.dueDate) < new Date();
+                                                const isPaid = inst.status === 'Paid';
                                                 return (
-                                                    <div key={i} className={`flex justify-between items-center p-4 rounded-2xl border-l-4 border transition-all ${inst.status === 'Paid' ? 'bg-green-50 border-green-500 border-l-green-600' :
-                                                            isOverdue ? 'bg-red-50 border-red-200 border-l-red-600' : 'bg-white border-slate-100 border-l-slate-400'
-                                                        }`}>
+                                                    <div key={i} className={`flex justify-between items-center p-5 rounded-2xl border-l-4 shadow-sm transition-all ${isPaid ? 'bg-green-50 border-green-600' : 'bg-white border-slate-200 opacity-60'}`}>
                                                         <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="text-xs font-black uppercase text-slate-800 tracking-tighter">Inst. #{i + 1}</p>
-                                                                {inst.status === 'Paid' ? (
-                                                                    <span className="text-[8px] bg-green-600 text-white px-1.5 py-0.5 rounded-full font-bold uppercase">PAID</span>
-                                                                ) : (
-                                                                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase ${isOverdue ? 'bg-red-600 text-white animate-pulse' : 'bg-slate-200 text-slate-600'}`}>
-                                                                        {isOverdue ? 'OVERDUE' : 'PENDING'}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            <p className="text-[9px] font-bold text-slate-500 mt-0.5 flex items-center gap-1">
-                                                                <Clock size={10} />
-                                                                Due: {new Date(inst.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                                            </p>
+                                                            <p className="text-xs font-black uppercase text-slate-800">Installment #{i + 1}</p>
+                                                            <p className="text-[9px] font-bold text-slate-400 uppercase">Due: {new Date(inst.dueDate).toLocaleDateString('en-GB')}</p>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className={`font-black text-sm ${inst.status === 'Paid' ? 'text-green-600' : 'text-slate-700'}`}>
-                                                                Rs. {inst.amount?.toLocaleString()}
-                                                            </p>
-                                                        </div>
+                                                        <p className={`font-black text-lg ${isPaid ? 'text-green-600' : 'text-slate-400'}`}>Rs. {inst.amount?.toLocaleString()}</p>
                                                     </div>
                                                 );
                                             })
                                         ) : (
-                                            /* Fallback to old feeHistory if installments array is empty */
                                             selectedStudent.feeHistory?.map((h: any, i: number) => (
-                                                <div key={i} className="flex justify-between items-center p-4 bg-white border border-slate-100 rounded-2xl border-l-4 border-green-500">
+                                                <div key={i} className="flex justify-between items-center p-5 bg-white border border-slate-100 rounded-2xl border-l-4 border-green-500 shadow-sm">
                                                     <div>
-                                                        <p className="text-xs font-black uppercase text-slate-800">Installment #{i + 1}</p>
-                                                        <p className="text-[9px] font-bold text-slate-400">{new Date(h.datePaid || h.date || h.createdAt).toLocaleDateString()}</p>
+                                                        <p className="text-xs font-black uppercase text-slate-800">Installment Record</p>
+                                                        <p className="text-[9px] font-bold text-slate-400 uppercase">{new Date(h.datePaid || h.createdAt).toLocaleDateString()}</p>
                                                     </div>
-                                                    <p className="font-black text-sm text-green-600">+ Rs. {h.amountPaid || h.amount}</p>
+                                                    <p className="font-black text-lg text-green-600">+ Rs. {Number(h.amountPaid).toLocaleString()}</p>
                                                 </div>
                                             ))
                                         )}
                                     </div>
 
-                                    <div className="p-6 bg-slate-50 mt-auto">
+                                    <div className="p-8 bg-slate-50 border-t mt-auto">
                                         {Number(selectedStudent.officeUse?.balanceAmount) > 0 ? (
-                                            <button onClick={() => handleAddInstallment(selectedStudent._id)} className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-black transition-all">
-                                                <Plus size={18} /> RECORD INSTALLMENT
+                                            <button
+                                                disabled={isProcessing}
+                                                onClick={() => handleAddInstallment(selectedStudent._id)}
+                                                className="w-full bg-slate-900 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 hover:bg-blue-600 disabled:bg-slate-400 active:scale-95 transition-all shadow-xl uppercase text-xs tracking-[0.2em]"
+                                            >
+                                                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
+                                                {isProcessing ? "Processing..." : "Record Payment"}
                                             </button>
                                         ) : (
-                                            <div className="w-full bg-green-500 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-2">
-                                                <UserCheck size={18} /> FULLY PAID
+                                            <div className="w-full bg-green-600 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 shadow-xl uppercase text-xs tracking-[0.2em]">
+                                                <UserCheck size={20} /> Account Settled
                                             </div>
                                         )}
                                     </div>
@@ -395,6 +420,13 @@ export default function AllFormsPage() {
                     </div>
                 </div>
             )}
+
+            <style jsx global>{`
+                .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+            `}</style>
         </div>
     );
 }
