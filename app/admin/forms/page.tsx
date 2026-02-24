@@ -33,7 +33,7 @@ export default function AllFormsPage() {
                 // Optional: redirect to login
             }
 
-            const res = await axios.get(`${API_BASE_URL}/api/admin/forms`, {
+            const res = await axios.get(`${API_BASE_URL}/admin/forms`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
