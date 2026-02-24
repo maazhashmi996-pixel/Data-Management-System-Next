@@ -1,9 +1,8 @@
 "use client";
-import { useState } from 'react';
-// Purana axios hata kar central api import ki hai
+import { useState, useEffect } from 'react';
 import api from '@/lib/axios';
 import { useRouter } from 'next/navigation';
-import { LogIn, Mail, Lock, ShieldCheck, ArrowRight } from 'lucide-react';
+import { LogIn, Mail, Lock, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LoginPage() {
@@ -12,117 +11,142 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
+    // 1. Auth Guard: Agar user pehle se login hai to usey wapas dashboard bhej do
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const role = localStorage.getItem('role')?.toLowerCase();
+        if (token && role) {
+            router.replace(`/${role}/dashboard`);
+        }
+    }, [router]);
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            // CENTRAL API use ho rahi hai - Ab URL ka rona khatam
+            // CENTRAL API Call
             const res = await api.post('/auth/login', { email, password });
 
-            // 1. Token aur Full User Data save karna
+            // 2. Data Persistence (Token aur User info save karna)
             localStorage.setItem('token', res.data.token);
             localStorage.setItem('user', JSON.stringify(res.data.user));
 
-            // 2. Role ko separate save karna
-            const userRole = res.data.user.role;
+            const userRole = res.data.user.role.toLowerCase();
             localStorage.setItem('role', userRole);
 
-            // 3. --- ROLE BASED NAVIGATION ---
-            const role = userRole.toLowerCase();
+            // 3. Dynamic Role Based Navigation
+            const dashboardPaths: Record<string, string> = {
+                admin: '/admin/dashboard',
+                agent: '/agent/dashboard',
+                teacher: '/teacher/dashboard'
+            };
 
-            if (role === 'admin') {
-                router.push('/admin/dashboard');
-            }
-            else if (role === 'agent') {
-                router.push('/agent/dashboard');
-            }
-            else if (role === 'teacher') {
-                router.push('/teacher/dashboard');
-            }
-            else {
-                router.push('/');
-            }
+            const targetPath = dashboardPaths[userRole] || '/';
+
+            // Success animation ke liye chhota sa delay (Optional but feels premium)
+            router.replace(targetPath);
 
         } catch (err: any) {
             console.error("Login Error:", err);
-            alert(err.response?.data?.message || "Login Failed! Check your credentials.");
+            alert(err.response?.data?.message || "Login Failed! Please check your credentials.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4 font-sans">
-            <div className="w-full max-w-md">
-                {/* Login Card */}
-                <div className="bg-white shadow-2xl rounded-3xl overflow-hidden border border-gray-100">
-                    <div className="p-8">
-                        {/* Header Area */}
-                        <div className="text-center mb-8">
-                            <div className="bg-blue-600 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
-                                <ShieldCheck className="text-white w-10 h-10" />
+        <div className="min-h-screen flex items-center justify-center bg-[#fdfeff] p-4 font-sans selection:bg-blue-100">
+            <div className="w-full max-w-md animate-in fade-in zoom-in duration-500">
+
+                {/* Main Login Card */}
+                <div className="bg-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.08)] rounded-[2.5rem] overflow-hidden border border-slate-100">
+                    <div className="p-8 md:p-12">
+
+                        {/* Header Section */}
+                        <div className="text-center mb-10">
+                            <div className="bg-blue-600 w-20 h-20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-2xl shadow-blue-200 transition-transform hover:scale-105 active:scale-95 duration-300">
+                                <ShieldCheck className="text-white w-12 h-12" />
                             </div>
-                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">CRM LOGIN</h2>
-                            <p className="text-gray-400 text-sm mt-1 font-medium italic">Secure Access Portal</p>
+                            <h2 className="text-3xl font-[900] text-slate-900 tracking-tighter uppercase leading-none">
+                                CRM LOGIN
+                            </h2>
+                            <p className="text-slate-400 text-[10px] mt-3 font-bold tracking-[0.3em] uppercase opacity-70">
+                                Secure Enterprise Access
+                            </p>
                         </div>
 
-                        {/* Form Area */}
-                        <form onSubmit={handleLogin} className="space-y-5">
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
-                                <div className="relative mt-1">
-                                    <Mail className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                        {/* Form Section */}
+                        <form onSubmit={handleLogin} className="space-y-6">
+                            {/* Email Input */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                    Email Address
+                                </label>
+                                <div className="relative group">
+                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
                                     <input
                                         type="email"
                                         required
-                                        placeholder="yourname@example.com"
-                                        className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-black font-semibold"
+                                        placeholder="name@company.com"
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-slate-800 font-bold placeholder:text-slate-300 placeholder:font-medium"
                                         onChange={(e) => setEmail(e.target.value)}
                                     />
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Password</label>
-                                <div className="relative mt-1">
-                                    <Lock className="absolute left-3 top-3.5 w-4 h-4 text-gray-400" />
+                            {/* Password Input */}
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                                    Password
+                                </label>
+                                <div className="relative group">
+                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
                                     <input
                                         type="password"
                                         required
                                         placeholder="••••••••"
-                                        className="w-full pl-10 pr-4 py-3.5 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-black"
+                                        className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-slate-800 font-bold placeholder:text-slate-300"
                                         onChange={(e) => setPassword(e.target.value)}
                                     />
                                 </div>
                             </div>
 
+                            {/* Submit Button */}
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-sm tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-xl hover:shadow-blue-200 group disabled:opacity-70 uppercase"
+                                className="w-full bg-slate-900 text-white py-5 rounded-[1.5rem] font-black text-xs tracking-[0.2em] hover:bg-blue-600 transition-all flex items-center justify-center gap-3 shadow-xl hover:shadow-blue-500/20 active:scale-[0.98] disabled:opacity-80 uppercase group overflow-hidden relative"
                             >
-                                {loading ? "Authenticating..." : "Sign In"}
-                                {!loading && <LogIn size={18} className="group-hover:translate-x-1 transition-transform" />}
+                                {loading ? (
+                                    <Loader2 className="animate-spin" size={20} />
+                                ) : (
+                                    <>
+                                        Sign In
+                                        <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                    </>
+                                )}
                             </button>
                         </form>
 
-                        {/* Setup Section */}
-                        <div className="mt-10 pt-6 border-t border-gray-50 text-center">
-                            <p className="text-gray-400 text-[10px] mb-3 uppercase tracking-tighter font-bold">System Administrator Only</p>
+                        {/* Setup Section - PATH FIXED */}
+                        <div className="mt-12 pt-8 border-t border-slate-50 text-center">
+                            <p className="text-slate-400 text-[9px] mb-4 uppercase tracking-[0.2em] font-black opacity-50">
+                                First time here? Contact System Admin
+                            </p>
                             <Link
-                                href="/admin/setup-root"
-                                className="inline-flex items-center gap-2 text-blue-600 font-extrabold text-xs hover:text-blue-800 transition-colors uppercase"
+                                href="/setup-root"
+                                className="group inline-flex items-center gap-2 text-blue-600 font-black text-xs hover:text-blue-700 transition-all uppercase tracking-widest bg-blue-50/50 px-8 py-4 rounded-2xl border border-transparent hover:border-blue-100"
                             >
-                                First Time Setup? Create Account
-                                <ArrowRight size={14} />
+                                First Time Setup?
+                                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                             </Link>
                         </div>
                     </div>
                 </div>
 
                 {/* Footer Tagline */}
-                <p className="text-center text-gray-400 text-[9px] mt-8 uppercase tracking-[0.3em] font-bold">
-                    &copy; 2026 CRM Systems &bull; Secure Enterprise Access
+                <p className="text-center text-slate-300 text-[9px] mt-10 uppercase tracking-[0.4em] font-bold">
+                    &copy; 2026 CRM Systems &bull; Enterprise Grade Security
                 </p>
             </div>
         </div>
