@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useCallback } from 'react';
+import api from '@/lib/axios'; // ✅ Centralized axios instance use kiya hai
+import { toast } from 'react-hot-toast'; // ✅ Professional notifications
 import { UserPlus, Trash2, ShieldCheck, Mail, Lock, User, Loader2 } from 'lucide-react';
 
 interface Agent {
@@ -11,61 +12,63 @@ interface Agent {
 }
 
 export default function AgentManagement() {
-    // Initial state ko empty array rakha hai taake .map crash na kare
     const [agents, setAgents] = useState<Agent[]>([]);
     const [loading, setLoading] = useState(false);
+    const [fetching, setFetching] = useState(true);
     const [formData, setFormData] = useState({ name: '', email: '', password: '' });
 
-    const fetchAgents = async () => {
+    // ✅ Memoized fetch function taake unnecessary re-renders na hon
+    const fetchAgents = useCallback(async () => {
+        setFetching(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get('http://localhost:5000/api/admin/agents', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            // Backend se aane wala data check kar rahe hain
-            // Agar res.data.agents hai to wo use karein, warna res.data
-            if (res.data && res.data.agents) {
-                setAgents(res.data.agents);
-            } else if (Array.isArray(res.data)) {
-                setAgents(res.data);
-            }
-        } catch (err) {
+            const res = await api.get('/admin/agents');
+            // Backend data handling
+            const agentsData = res.data.agents || res.data;
+            setAgents(Array.isArray(agentsData) ? agentsData : []);
+        } catch (err: any) {
             console.error("Agents fetch error:", err);
-            setAgents([]); // Error ki surat mein empty array
+            toast.error("Agents list load nahi ho saki");
+            setAgents([]);
+        } finally {
+            setFetching(false);
         }
-    };
+    }, []);
 
-    useEffect(() => { fetchAgents(); }, []);
+    useEffect(() => {
+        fetchAgents();
+    }, [fetchAgents]);
 
     const handleCreateAgent = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Basic validation
+        if (formData.password.length < 6) {
+            toast.error("Password kam az kam 6 characters ka hona chahiye");
+            return;
+        }
+
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            await axios.post('http://localhost:5000/api/admin/create-agent', formData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert("✅ Agent Created Successfully!");
+            await api.post('/admin/create-agent', formData);
+            toast.success("✅ Agent Created Successfully!");
             setFormData({ name: '', email: '', password: '' });
             fetchAgents();
         } catch (err: any) {
-            alert(err.response?.data?.message || "Error creating agent");
+            const errorMsg = err.response?.data?.message || "Error creating agent";
+            toast.error(errorMsg);
         } finally {
             setLoading(false);
         }
     };
 
     const deleteAgent = async (id: string) => {
-        if (confirm("Are you sure? Is agent ka sara data (forms) admin ke control mein rahega par agent login nahi kar payega.")) {
+        if (window.confirm("Are you sure? Is agent ka sara data (forms) admin ke control mein rahega par agent login nahi kar payega.")) {
             try {
-                const token = localStorage.getItem('token');
-                await axios.delete(`http://localhost:5000/api/admin/delete-agent/${id}`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                await api.delete(`/admin/delete-agent/${id}`);
+                toast.success("Agent removed successfully");
                 fetchAgents();
             } catch (err) {
-                alert("Delete failed!");
+                toast.error("Delete failed!");
             }
         }
     };
@@ -90,8 +93,13 @@ export default function AgentManagement() {
                                 <label className="text-xs font-bold text-gray-500 uppercase ml-1">Full Name</label>
                                 <div className="relative">
                                     <User className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                                    <input required placeholder="John Doe" className="w-full border border-gray-200 pl-10 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                        onChange={e => setFormData({ ...formData, name: e.target.value })} value={formData.name} />
+                                    <input
+                                        required
+                                        placeholder="John Doe"
+                                        className="w-full border border-gray-200 pl-10 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                        value={formData.name}
+                                    />
                                 </div>
                             </div>
 
@@ -99,8 +107,14 @@ export default function AgentManagement() {
                                 <label className="text-xs font-bold text-gray-500 uppercase ml-1">Email Address</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                                    <input required type="email" placeholder="agent@zone.com" className="w-full border border-gray-200 pl-10 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                        onChange={e => setFormData({ ...formData, email: e.target.value })} value={formData.email} />
+                                    <input
+                                        required
+                                        type="email"
+                                        placeholder="agent@zone.com"
+                                        className="w-full border border-gray-200 pl-10 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                                        value={formData.email}
+                                    />
                                 </div>
                             </div>
 
@@ -108,14 +122,20 @@ export default function AgentManagement() {
                                 <label className="text-xs font-bold text-gray-500 uppercase ml-1">Password</label>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
-                                    <input required type="password" placeholder="••••••••" className="w-full border border-gray-200 pl-10 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                        onChange={e => setFormData({ ...formData, password: e.target.value })} value={formData.password} />
+                                    <input
+                                        required
+                                        type="password"
+                                        placeholder="••••••••"
+                                        className="w-full border border-gray-200 pl-10 p-2.5 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                                        value={formData.password}
+                                    />
                                 </div>
                             </div>
 
                             <button
                                 disabled={loading}
-                                className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200"
+                                className="w-full bg-slate-900 text-white py-3 rounded-xl font-bold hover:bg-blue-600 transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 disabled:opacity-50"
                             >
                                 {loading ? <Loader2 className="animate-spin" /> : "Authorize Agent"}
                             </button>
@@ -124,8 +144,9 @@ export default function AgentManagement() {
 
                     {/* Agents List Table */}
                     <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-5 border-b border-gray-50 bg-slate-50/50">
-                            <h2 className="font-bold text-slate-700">Active Agents ({agents?.length || 0})</h2>
+                        <div className="p-5 border-b border-gray-50 bg-slate-50/50 flex justify-between items-center">
+                            <h2 className="font-bold text-slate-700">Active Agents ({agents.length})</h2>
+                            {fetching && <Loader2 className="animate-spin text-blue-500 w-4 h-4" />}
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full text-left">
@@ -138,8 +159,7 @@ export default function AgentManagement() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-50">
-                                    {/* Safe Mapping using optional chaining and fallout array */}
-                                    {(Array.isArray(agents) ? agents : []).map(agent => (
+                                    {agents.map(agent => (
                                         <tr key={agent._id} className="hover:bg-blue-50/30 transition-colors group">
                                             <td className="p-4">
                                                 <div className="flex items-center gap-3">
@@ -151,7 +171,7 @@ export default function AgentManagement() {
                                             </td>
                                             <td className="p-4 text-gray-500 text-sm">{agent.email}</td>
                                             <td className="p-4 text-gray-400 text-xs">
-                                                {new Date(agent.createdAt).toLocaleDateString()}
+                                                {agent.createdAt ? new Date(agent.createdAt).toLocaleDateString() : 'N/A'}
                                             </td>
                                             <td className="p-4 text-center">
                                                 <button
@@ -165,7 +185,7 @@ export default function AgentManagement() {
                                     ))}
                                 </tbody>
                             </table>
-                            {(!agents || agents.length === 0) && (
+                            {!fetching && agents.length === 0 && (
                                 <div className="p-10 text-center text-gray-400 italic">
                                     No agents found. Start by adding one!
                                 </div>

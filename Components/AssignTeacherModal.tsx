@@ -11,6 +11,7 @@ interface Teacher {
 }
 
 interface AssignedSubject {
+    id: string; // Internal unique ID for stable rendering
     subjectName: string;
     teacherId: string;
 }
@@ -26,51 +27,64 @@ export default function AssignTeacherModal({ student, onClose, onSuccess }: Assi
     const [loading, setLoading] = useState<boolean>(false);
     const [fetchingTeachers, setFetchingTeachers] = useState<boolean>(true);
 
-    // Initial state: starts with one empty row
+    // Initial state: starts with one empty row with a unique ID
     const [assignments, setAssignments] = useState<AssignedSubject[]>([
-        { subjectName: '', teacherId: '' }
+        { id: Math.random().toString(36).substr(2, 9), subjectName: '', teacherId: '' }
     ]);
 
     useEffect(() => {
+        let isMounted = true;
         const fetchTeachers = async () => {
             setFetchingTeachers(true);
             try {
                 const res = await api.get('/admin/teachers');
-                // Backend standard handling
                 const teachersData = res.data.teachers || res.data;
-                setTeachers(Array.isArray(teachersData) ? teachersData : []);
+                if (isMounted) {
+                    setTeachers(Array.isArray(teachersData) ? teachersData : []);
+                }
             } catch (err) {
-                toast.error("Faculty load karne mein masla hua");
+                if (isMounted) {
+                    toast.error("Faculty load karne mein masla hua");
+                }
             } finally {
-                setFetchingTeachers(false);
+                if (isMounted) {
+                    setFetchingTeachers(false);
+                }
             }
         };
         fetchTeachers();
+        return () => { isMounted = false; }; // Cleanup to prevent memory leaks
     }, []);
 
     const addSubjectRow = () => {
         if (assignments.length < 4) {
-            setAssignments([...assignments, { subjectName: '', teacherId: '' }]);
+            setAssignments([
+                ...assignments,
+                { id: Math.random().toString(36).substr(2, 9), subjectName: '', teacherId: '' }
+            ]);
         } else {
             toast.error("Maximum 4 subjects allowed");
         }
     };
 
-    const removeSubjectRow = (index: number) => {
-        const updated = assignments.filter((_, i) => i !== index);
+    const removeSubjectRow = (id: string) => {
+        const updated = assignments.filter((item) => item.id !== id);
         setAssignments(updated);
     };
 
-    const updateAssignment = (index: number, field: keyof AssignedSubject, value: string) => {
+    const updateAssignment = (index: number, field: keyof Omit<AssignedSubject, 'id'>, value: string) => {
         const updated = [...assignments];
         updated[index][field] = value;
         setAssignments(updated);
     };
 
     const handleAssign = async () => {
-        // Validation: No empty fields allowed
-        const hasEmptyFields = assignments.some(a => !a.subjectName.trim() || !a.teacherId);
+        if (!student?._id) {
+            toast.error("Student information is missing");
+            return;
+        }
 
+        const hasEmptyFields = assignments.some(a => !a.subjectName.trim() || !a.teacherId);
         if (hasEmptyFields) {
             toast.error("Please fill all subject names and select teachers");
             return;
@@ -78,10 +92,15 @@ export default function AssignTeacherModal({ student, onClose, onSuccess }: Assi
 
         setLoading(true);
         try {
-            // MATCHING WITH UPDATED BACKEND CONTROLLER
+            // Mapping to remove the internal 'id' before sending to backend
+            const payload = assignments.map(({ subjectName, teacherId }) => ({
+                subjectName,
+                teacherId
+            }));
+
             const res = await api.patch('/admin/assign-multiple-teachers', {
                 studentId: student._id,
-                assignments: assignments
+                assignments: payload
             });
 
             if (res.data.success) {
@@ -91,7 +110,7 @@ export default function AssignTeacherModal({ student, onClose, onSuccess }: Assi
             }
         } catch (err: any) {
             console.error("Assignment Error:", err);
-            const errorMsg = err.response?.data?.message || "Internal Server Error (500)";
+            const errorMsg = err.response?.data?.message || err.message || "Internal Server Error (500)";
             toast.error(errorMsg);
         } finally {
             setLoading(false);
@@ -110,7 +129,7 @@ export default function AssignTeacherModal({ student, onClose, onSuccess }: Assi
                             Assign Subjects & Teachers
                         </h2>
                         <p className="text-slate-400 text-xs mt-1 font-medium">
-                            Student: <span className="text-emerald-400 font-bold">{student?.studentName}</span>
+                            Student: <span className="text-emerald-400 font-bold">{student?.studentName || 'Unknown'}</span>
                         </p>
                     </div>
                     <button
@@ -131,7 +150,7 @@ export default function AssignTeacherModal({ student, onClose, onSuccess }: Assi
                         <>
                             <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                                 {assignments.map((item, index) => (
-                                    <div key={index} className="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:border-blue-200 hover:bg-white hover:shadow-md">
+                                    <div key={item.id} className="flex flex-col md:flex-row gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:border-blue-200 hover:bg-white hover:shadow-md">
 
                                         {/* Subject Input */}
                                         <div className="flex-1">
@@ -169,7 +188,7 @@ export default function AssignTeacherModal({ student, onClose, onSuccess }: Assi
                                         {/* Delete Action */}
                                         {assignments.length > 1 && (
                                             <button
-                                                onClick={() => removeSubjectRow(index)}
+                                                onClick={() => removeSubjectRow(item.id)}
                                                 className="md:mt-6 p-2 text-slate-300 hover:text-red-500 transition-all self-end md:self-center"
                                                 title="Remove Row"
                                             >
