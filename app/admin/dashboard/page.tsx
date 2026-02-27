@@ -64,17 +64,20 @@ const PaymentAlertBanner = ({ alerts }: { alerts: any[] }) => {
     if (!alerts || alerts.length === 0) return null;
 
     return (
-        <div className="max-w-7xl mx-auto mb-6 animate-in fade-in slide-in-from-top-4 duration-500 relative z-10">
+        <div className="max-w-7xl mx-auto mb-6 relative z-50">
             <div className={`bg-white border-l-4 border-red-500 shadow-xl rounded-[2rem] overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px]' : 'max-h-[80px]'}`}>
                 <div className="p-5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-red-50 text-red-600 rounded-2xl animate-pulse"><AlertTriangle size={24} /></div>
+                        <div className="p-3 bg-red-50 text-red-600 rounded-2xl"><AlertTriangle size={24} /></div>
                         <div>
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-tight">Fee Reminders</h3>
                             <p className="text-[10px] text-slate-500 font-bold uppercase">{alerts.length} Pending Installments Found</p>
                         </div>
                     </div>
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase transition-all relative z-20">
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="px-4 py-2 bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase transition-all block opacity-100 visible"
+                    >
                         {isExpanded ? 'Close' : 'View Alerts'}
                     </button>
                 </div>
@@ -82,14 +85,14 @@ const PaymentAlertBanner = ({ alerts }: { alerts: any[] }) => {
                     <div className="p-6 pt-0 overflow-y-auto max-h-[400px]">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {alerts.map((student: any) => (
-                                <div key={student._id} className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-100 group">
+                                <div key={student._id} className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-100">
                                     <div className="truncate mr-2">
                                         <p className="text-xs font-black text-slate-800 uppercase truncate">{student.studentName}</p>
                                         <p className="text-[8px] text-red-500 font-bold uppercase">Due/Overdue</p>
                                     </div>
                                     <button
                                         onClick={() => window.open(`https://wa.me/${student.parentPhone}?text=Asalam-o-Alaikum, Education System ki taraf se reminder hai ke aapki installment due hai.`, '_blank')}
-                                        className="p-2 bg-emerald-500 text-white rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-200 shrink-0 relative z-20"
+                                        className="p-2 bg-emerald-500 text-white rounded-xl shadow-lg block opacity-100 visible"
                                     >
                                         <MessageCircle size={14} />
                                     </button>
@@ -259,16 +262,22 @@ export default function AdminDashboard() {
                         <div className="p-2 bg-slate-900 rounded-xl text-white shadow-lg rotate-3"><LayoutDashboard size={28} /></div>
                         ADMIN<span className="text-blue-600 font-light not-italic ml-1">CORE</span>
                     </h1>
-                    <div className="flex gap-2 mt-4 bg-white p-1 rounded-xl shadow-sm border border-slate-100">
+                    <div className="flex gap-2 mt-4 bg-white p-1 rounded-xl shadow-sm border border-slate-200">
                         {(['students', 'agents', 'teachers'] as const).map((mode) => (
-                            <button key={mode} onClick={() => { setViewMode(mode); setSearchTerm(""); setCurrentPage(1); }} className={`whitespace-nowrap px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative z-20 ${viewMode === mode ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>{mode}</button>
+                            <button
+                                key={mode}
+                                onClick={() => { setViewMode(mode); setSearchTerm(""); setCurrentPage(1); }}
+                                className={`whitespace-nowrap px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all block opacity-100 visible ${viewMode === mode ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                            >
+                                {mode}
+                            </button>
                         ))}
                     </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 relative z-10">
                     {timeFilter === 'Custom' && (
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4">
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
                             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-[10px] font-bold outline-none p-1" />
                             <span className="text-slate-300 text-xs">to</span>
                             <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="text-[10px] font-bold outline-none p-1" />
@@ -277,15 +286,29 @@ export default function AdminDashboard() {
 
                     <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
                         {(['All', 'Today', 'Week', 'Month', 'Custom'] as const).map((t) => (
-                            <button key={t} onClick={() => setTimeFilter(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all relative z-20 ${timeFilter === t ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>{t}</button>
+                            <button
+                                key={t}
+                                onClick={() => setTimeFilter(t)}
+                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all block opacity-100 visible ${timeFilter === t ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+                            >
+                                {t}
+                            </button>
                         ))}
                     </div>
 
-                    <button onClick={() => router.push('/admin/agents/create-form')} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-blue-900/10 relative z-20">
+                    <button
+                        onClick={() => router.push('/admin/agents/create-form')}
+                        className="flex items-center gap-2 bg-slate-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl block opacity-100 visible"
+                    >
                         <PlusCircle size={18} /> Create Student
                     </button>
 
-                    <button onClick={fetchData} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 shadow-sm transition-all active:scale-95 relative z-20"><RefreshCcw size={20} className={loading ? "animate-spin" : ""} /></button>
+                    <button
+                        onClick={fetchData}
+                        className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-600 hover:text-blue-600 shadow-sm block opacity-100 visible"
+                    >
+                        <RefreshCcw size={20} className={loading ? "animate-spin" : ""} />
+                    </button>
                 </div>
             </div>
 
@@ -296,13 +319,13 @@ export default function AdminDashboard() {
                     <h3 className="text-3xl font-black text-slate-800">{stats?.totalForms || 0}</h3>
                 </div>
 
-                <div onClick={() => setStatusFilter(statusFilter === 'Pass' ? 'All' : 'Pass')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Pass' ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-slate-100 hover:border-emerald-200'}`}>
+                <div onClick={() => setStatusFilter(statusFilter === 'Pass' ? 'All' : 'Pass')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Pass' ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-slate-100'}`}>
                     <div className={`w-10 h-10 ${statusFilter === 'Pass' ? 'bg-white/20' : 'bg-emerald-50 text-emerald-600'} rounded-xl flex items-center justify-center mb-3`}><CheckCircle /></div>
                     <p className={`text-[9px] font-black uppercase mb-1 ${statusFilter === 'Pass' ? 'text-emerald-100' : 'text-slate-400'}`}>Pass Status</p>
                     <h3 className="text-3xl font-black">{passCount}</h3>
                 </div>
 
-                <div onClick={() => setStatusFilter(statusFilter === 'Fail' ? 'All' : 'Fail')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Fail' ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100 hover:border-red-200'}`}>
+                <div onClick={() => setStatusFilter(statusFilter === 'Fail' ? 'All' : 'Fail')} className={`cursor-pointer p-6 rounded-[2rem] border transition-all ${statusFilter === 'Fail' ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'bg-white border-slate-100'}`}>
                     <div className={`w-10 h-10 ${statusFilter === 'Fail' ? 'bg-white/20' : 'bg-red-50 text-red-600'} rounded-xl flex items-center justify-center mb-3`}><XCircle /></div>
                     <p className={`text-[9px] font-black uppercase mb-1 ${statusFilter === 'Fail' ? 'text-red-100' : 'text-slate-400'}`}>Fail Status</p>
                     <h3 className="text-3xl font-black">{failCount}</h3>
@@ -321,12 +344,18 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden relative z-10">
+            <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden relative z-10">
                 <div className="p-8 border-b flex flex-col lg:flex-row justify-between items-center gap-8 bg-slate-50/30">
                     <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
                         {viewMode === 'students' ? (
                             (['All', 'Education Zone', 'DIB Education System'] as const).map((tab) => (
-                                <button key={tab} onClick={() => { setActiveTab(tab); setCurrentPage(1); }} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all relative z-20 ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}</button>
+                                <button
+                                    key={tab}
+                                    onClick={() => { setActiveTab(tab); setCurrentPage(1); }}
+                                    className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all block opacity-100 visible ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-500 hover:text-slate-700'}`}
+                                >
+                                    {tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}
+                                </button>
                             ))
                         ) : <div className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-600">Managing {viewMode}</div>}
                     </div>
@@ -339,20 +368,20 @@ export default function AdminDashboard() {
 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
-                        <thead className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                        <thead className="bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest border-b">
                             <tr>
-                                <th className="px-8 py-5">{viewMode === 'students' ? 'Identity' : 'Profile Info'}</th>
-                                <th className="px-8 py-5">{viewMode === 'students' ? 'Course' : 'Contact Details'}</th>
-                                <th className="px-8 py-5">{viewMode === 'students' ? 'Grading' : 'Performance'}</th>
+                                <th className="px-8 py-5">Identity</th>
+                                <th className="px-8 py-5">Details</th>
+                                <th className="px-8 py-5">Status/Grading</th>
                                 <th className="px-8 py-5 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-slate-100">
                             {loading ? (
-                                <tr><td colSpan={4} className="p-32 text-center animate-pulse font-black text-slate-300 tracking-[0.5em]">SYNCHRONIZING...</td></tr>
+                                <tr><td colSpan={4} className="p-32 text-center font-black text-slate-400 tracking-[0.5em]">LOADING DATA...</td></tr>
                             ) : viewMode === 'students' ? (
                                 currentStudents.map((form) => (
-                                    <tr key={form._id} className="hover:bg-slate-50/80 transition-all group">
+                                    <tr key={form._id} className="hover:bg-slate-50 transition-all border-b border-slate-50">
                                         <td className="px-8 py-6">
                                             <div className="flex items-center gap-4">
                                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white shadow-lg ${form.formType === 'Education Zone' ? 'bg-orange-500' : 'bg-blue-600'}`}>{form.studentName?.charAt(0)}</div>
@@ -370,8 +399,8 @@ export default function AdminDashboard() {
                                             <div className="flex flex-col gap-2 max-w-[220px]">
                                                 {form.assignedSubjects?.map((sub, idx) => (
                                                     <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
-                                                        <span className="text-[8px] font-black text-slate-400 uppercase truncate max-w-[60px]">{sub.subjectName}</span>
-                                                        <select value={sub.status || "Pending"} onChange={(e) => handleSubjectStatusChange(form._id, sub.subjectName, e.target.value)} className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none cursor-pointer ${sub.status === 'Pass' ? 'bg-emerald-50 text-emerald-600' : sub.status === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-slate-50'}`}>
+                                                        <span className="text-[8px] font-black text-slate-500 uppercase truncate max-w-[60px]">{sub.subjectName}</span>
+                                                        <select value={sub.status || "Pending"} onChange={(e) => handleSubjectStatusChange(form._id, sub.subjectName, e.target.value)} className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none ${sub.status === 'Pass' ? 'bg-emerald-50 text-emerald-600' : sub.status === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-slate-50'}`}>
                                                             <option value="Pending">Pending</option>
                                                             <option value="Pass">Pass</option>
                                                             <option value="Fail">Fail</option>
@@ -381,18 +410,18 @@ export default function AdminDashboard() {
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
-                                                <button onClick={() => { setStudentToAssign(form); setShowAssignModal(true); }} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-emerald-600 shadow-sm transition-colors relative z-20"><Layers size={16} /></button>
-                                                <button onClick={() => router.push(`/admin/forms/edit/${form._id}`)} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-amber-600 shadow-sm transition-colors relative z-20"><Edit3 size={16} /></button>
-                                                <button onClick={() => { setSelectedForm(form); setIsPreviewOpen(true); }} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-blue-600 shadow-sm transition-colors relative z-20"><Eye size={16} /></button>
-                                                <button onClick={() => deleteForm(form._id)} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-red-600 shadow-sm transition-colors relative z-20"><Trash2 size={16} /></button>
+                                            <div className="flex justify-end gap-2 opacity-100 visible">
+                                                <button onClick={() => { setStudentToAssign(form); setShowAssignModal(true); }} title="Assign" className="p-2.5 bg-slate-100 text-emerald-600 rounded-xl border border-emerald-100 hover:bg-emerald-600 hover:text-white transition-all block opacity-100 visible"><Layers size={16} /></button>
+                                                <button onClick={() => router.push(`/admin/forms/edit/${form._id}`)} title="Edit" className="p-2.5 bg-slate-100 text-amber-600 rounded-xl border border-amber-100 hover:bg-amber-600 hover:text-white transition-all block opacity-100 visible"><Edit3 size={16} /></button>
+                                                <button onClick={() => { setSelectedForm(form); setIsPreviewOpen(true); }} title="View" className="p-2.5 bg-slate-100 text-blue-600 rounded-xl border border-blue-100 hover:bg-blue-600 hover:text-white transition-all block opacity-100 visible"><Eye size={16} /></button>
+                                                <button onClick={() => deleteForm(form._id)} title="Delete" className="p-2.5 bg-slate-100 text-red-600 rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all block opacity-100 visible"><Trash2 size={16} /></button>
                                             </div>
                                         </td>
                                     </tr>
                                 ))
                             ) : viewMode === 'agents' ? (
                                 filteredAgents.map((agent) => (
-                                    <tr key={agent._id} className="hover:bg-slate-50/80 transition-all group">
+                                    <tr key={agent._id} className="hover:bg-slate-50 border-b border-slate-50">
                                         <td className="px-8 py-6 flex items-center gap-4">
                                             <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-white ${agent.isBlocked ? 'bg-red-500' : 'bg-indigo-600'}`}>{agent.name.charAt(0)}</div>
                                             <div>
@@ -400,10 +429,10 @@ export default function AdminDashboard() {
                                                 <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${agent.isBlocked ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>{agent.isBlocked ? 'Blocked' : 'Active'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6 text-xs font-black"><Mail size={14} className="inline mr-2 text-slate-400" />{agent.email}</td>
+                                        <td className="px-8 py-6 text-xs font-black text-slate-700"><Mail size={14} className="inline mr-2 text-slate-400" />{agent.email}</td>
                                         <td className="px-8 py-6 text-xl font-black text-indigo-700">{agent.formsCount}</td>
                                         <td className="px-8 py-6 text-right">
-                                            <button onClick={() => toggleAgentStatus(agent._id)} className={`p-3 rounded-xl transition-all relative z-20 ${agent.isBlocked ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-red-600 bg-red-50 hover:bg-red-100'}`}>
+                                            <button onClick={() => toggleAgentStatus(agent._id)} className={`p-3 rounded-xl border block opacity-100 visible ml-auto ${agent.isBlocked ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200'}`}>
                                                 {agent.isBlocked ? <Unlock size={18} /> : <Lock size={18} />}
                                             </button>
                                         </td>
@@ -411,14 +440,16 @@ export default function AdminDashboard() {
                                 ))
                             ) : (
                                 filteredTeachers.map((teacher) => (
-                                    <tr key={teacher._id} className="hover:bg-slate-50/80 transition-all group">
+                                    <tr key={teacher._id} className="hover:bg-slate-50 border-b border-slate-50">
                                         <td className="px-8 py-6 flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black">{teacher.name.charAt(0)}</div>
-                                            <div><p className="font-black uppercase">{teacher.name}</p><p className="text-[10px] text-emerald-600 font-bold uppercase">{teacher.specialization}</p></div>
+                                            <div><p className="font-black uppercase text-slate-800">{teacher.name}</p><p className="text-[10px] text-emerald-600 font-bold uppercase">{teacher.specialization}</p></div>
                                         </td>
-                                        <td className="px-8 py-6 text-xs font-black"><Mail size={14} className="inline mr-2 text-slate-400" />{teacher.email}</td>
+                                        <td className="px-8 py-6 text-xs font-black text-slate-700"><Mail size={14} className="inline mr-2 text-slate-400" />{teacher.email}</td>
                                         <td className="px-8 py-6 text-xl font-black text-emerald-700">{teacher.assignedStudentsCount}</td>
-                                        <td className="px-8 py-6 text-right"><button className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-blue-600 shadow-sm transition-all relative z-20"><Edit3 size={18} /></button></td>
+                                        <td className="px-8 py-6 text-right">
+                                            <button className="p-3 bg-slate-100 text-blue-600 rounded-xl border border-blue-100 block opacity-100 visible ml-auto"><Edit3 size={18} /></button>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -430,8 +461,8 @@ export default function AdminDashboard() {
                     <div className="p-8 border-t flex justify-between items-center bg-slate-50/50 relative z-10">
                         <p className="text-[10px] font-black text-slate-400 uppercase">Page {currentPage} of {totalPages} ({filteredForms.length} students)</p>
                         <div className="flex gap-2">
-                            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm relative z-20"><ChevronLeft size={18} /></button>
-                            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm relative z-20"><ChevronRight size={18} /></button>
+                            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-3 bg-white border border-slate-200 rounded-xl disabled:opacity-30 block opacity-100 visible"><ChevronLeft size={18} /></button>
+                            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-3 bg-white border border-slate-200 rounded-xl disabled:opacity-30 block opacity-100 visible"><ChevronRight size={18} /></button>
                         </div>
                     </div>
                 )}
@@ -447,11 +478,11 @@ export default function AdminDashboard() {
                         <div className="p-8 border-b flex justify-between items-center bg-white relative z-10">
                             <h2 className="font-black uppercase text-2xl text-slate-800">Student File Preview</h2>
                             <div className="flex gap-4">
-                                <button onClick={() => handlePrint()} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase shadow-lg hover:bg-blue-700 transition-all relative z-20"><Printer size={16} /> Print</button>
-                                <button onClick={() => setIsPreviewOpen(false)} className="p-3 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all relative z-20"><X size={20} /></button>
+                                <button onClick={() => handlePrint()} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase block opacity-100 visible"><Printer size={16} /> Print</button>
+                                <button onClick={() => setIsPreviewOpen(false)} className="p-3 bg-slate-100 text-slate-600 rounded-2xl block opacity-100 visible"><X size={20} /></button>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-12 bg-slate-50/50">
+                        <div className="flex-1 overflow-y-auto p-12 bg-slate-50">
                             <AdmissionForm ref={printRef} data={selectedForm} type={selectedForm.formType} />
                         </div>
                     </div>
