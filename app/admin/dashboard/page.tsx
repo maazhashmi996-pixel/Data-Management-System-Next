@@ -34,7 +34,7 @@ interface Form {
     cnic?: string;
     status?: string;
     createdAt: string;
-    parentPhone?: string; // Added for WhatsApp alerts
+    parentPhone?: string;
 }
 
 interface Agent {
@@ -59,7 +59,6 @@ interface Stats {
     totalTeachers: number;
 }
 
-// --- NEW COMPONENT: PAYMENT ALERT BANNER ---
 const PaymentAlertBanner = ({ alerts }: { alerts: any[] }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     if (!alerts || alerts.length === 0) return null;
@@ -140,7 +139,6 @@ export default function AdminDashboard() {
     const fetchData = async () => {
         setLoading(true);
         try {
-            // Using allSettled so that if one API fails (like alerts), the rest still load
             const results = await Promise.allSettled([
                 api.get('/admin/stats'),
                 api.get('/admin/forms'),
@@ -150,7 +148,13 @@ export default function AdminDashboard() {
             ]);
 
             if (results[0].status === 'fulfilled') setStats(results[0].value.data);
-            if (results[1].status === 'fulfilled') setForms(results[1].value.data.forms || []);
+            if (results[1].status === 'fulfilled') {
+                // Sorting: Newest students first
+                const sortedForms = (results[1].value.data.forms || []).sort((a: Form, b: Form) =>
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                );
+                setForms(sortedForms);
+            }
             if (results[2].status === 'fulfilled') setAgents(results[2].value.data.agents || []);
             if (results[3].status === 'fulfilled') setTeachers(results[3].value.data.teachers || []);
             if (results[4].status === 'fulfilled') setPaymentAlerts(results[4].value.data.alerts || []);
@@ -205,14 +209,17 @@ export default function AdminDashboard() {
         }
 
         setFilteredForms(results);
-        setCurrentPage(1);
+        setCurrentPage(1); // Reset to page 1 on search/filter
     }, [forms, timeFilter, activeTab, statusFilter, searchTerm, startDate, endDate]);
 
     const filteredAgents = agents.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()) || a.email.toLowerCase().includes(searchTerm.toLowerCase()));
     const filteredTeachers = teachers.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
+    // --- PAGINATION LOGIC ---
     const totalPages = Math.ceil(filteredForms.length / itemsPerPage);
-    const currentStudents = filteredForms.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentStudents = filteredForms.slice(indexOfFirstItem, indexOfLastItem);
 
     const passCount = useMemo(() => forms.filter(f => f.assignedSubjects?.some(s => s.status === 'Pass')).length, [forms]);
     const failCount = useMemo(() => forms.filter(f => f.assignedSubjects?.some(s => s.status === 'Fail')).length, [forms]);
@@ -246,10 +253,8 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10 text-slate-900 font-sans">
-            {/* ALERT SYSTEM */}
             <PaymentAlertBanner alerts={paymentAlerts} />
 
-            {/* HEADER */}
             <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-6">
                 <div>
                     <h1 className="text-4xl font-black italic tracking-tighter flex items-center gap-3">
@@ -258,7 +263,7 @@ export default function AdminDashboard() {
                     </h1>
                     <div className="flex gap-2 mt-4 bg-white p-1 rounded-xl shadow-sm border border-slate-100">
                         {(['students', 'agents', 'teachers'] as const).map((mode) => (
-                            <button key={mode} onClick={() => { setViewMode(mode); setSearchTerm(""); }} className={`whitespace-nowrap px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === mode ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>{mode}</button>
+                            <button key={mode} onClick={() => { setViewMode(mode); setSearchTerm(""); setCurrentPage(1); }} className={`whitespace-nowrap px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === mode ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>{mode}</button>
                         ))}
                     </div>
                 </div>
@@ -286,7 +291,6 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* STATS CARDS */}
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                     <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-3"><FileText /></div>
@@ -319,20 +323,19 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* MAIN DATA TABLE */}
             <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
                 <div className="p-8 border-b flex flex-col lg:flex-row justify-between items-center gap-8 bg-slate-50/30">
                     <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
                         {viewMode === 'students' ? (
                             (['All', 'Education Zone', 'DIB Education System'] as const).map((tab) => (
-                                <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}</button>
+                                <button key={tab} onClick={() => { setActiveTab(tab); setCurrentPage(1); }} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}</button>
                             ))
                         ) : <div className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-600">Managing {viewMode}</div>}
                     </div>
 
                     <div className="relative w-full lg:w-1/3">
                         <Search className="absolute left-5 top-4 text-slate-400" size={18} />
-                        <input type="text" placeholder={`Search ${viewMode}...`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 focus:border-blue-500 rounded-2xl text-sm font-bold outline-none shadow-sm transition-all" />
+                        <input type="text" placeholder={`Search ${viewMode}...`} value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }} className="w-full pl-14 pr-6 py-4 bg-white border border-slate-200 focus:border-blue-500 rounded-2xl text-sm font-bold outline-none shadow-sm transition-all" />
                     </div>
                 </div>
 
@@ -425,10 +428,9 @@ export default function AdminDashboard() {
                     </table>
                 </div>
 
-                {/* PAGINATION */}
                 {viewMode === 'students' && totalPages > 1 && (
                     <div className="p-8 border-t flex justify-between items-center bg-slate-50/50">
-                        <p className="text-[10px] font-black text-slate-400 uppercase">Page {currentPage} of {totalPages}</p>
+                        <p className="text-[10px] font-black text-slate-400 uppercase">Page {currentPage} of {totalPages} ({filteredForms.length} students)</p>
                         <div className="flex gap-2">
                             <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronLeft size={18} /></button>
                             <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronRight size={18} /></button>
@@ -437,7 +439,6 @@ export default function AdminDashboard() {
                 )}
             </div>
 
-            {/* MODALS */}
             {showAssignModal && studentToAssign && (
                 <AssignTeacherModal student={studentToAssign} onClose={() => { setShowAssignModal(false); setStudentToAssign(null); }} onSuccess={() => { setShowAssignModal(false); fetchData(); }} />
             )}
