@@ -64,7 +64,7 @@ const PaymentAlertBanner = ({ alerts }: { alerts: any[] }) => {
     if (!alerts || alerts.length === 0) return null;
 
     return (
-        <div className="max-w-7xl mx-auto mb-6 animate-in fade-in slide-in-from-top-4 duration-500">
+        <div className="max-w-7xl mx-auto mb-6 animate-in fade-in slide-in-from-top-4 duration-500 relative z-10">
             <div className={`bg-white border-l-4 border-red-500 shadow-xl rounded-[2rem] overflow-hidden transition-all duration-300 ${isExpanded ? 'max-h-[500px]' : 'max-h-[80px]'}`}>
                 <div className="p-5 flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -74,7 +74,7 @@ const PaymentAlertBanner = ({ alerts }: { alerts: any[] }) => {
                             <p className="text-[10px] text-slate-500 font-bold uppercase">{alerts.length} Pending Installments Found</p>
                         </div>
                     </div>
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase transition-all">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase transition-all relative z-20">
                         {isExpanded ? 'Close' : 'View Alerts'}
                     </button>
                 </div>
@@ -89,7 +89,7 @@ const PaymentAlertBanner = ({ alerts }: { alerts: any[] }) => {
                                     </div>
                                     <button
                                         onClick={() => window.open(`https://wa.me/${student.parentPhone}?text=Asalam-o-Alaikum, Education System ki taraf se reminder hai ke aapki installment due hai.`, '_blank')}
-                                        className="p-2 bg-emerald-500 text-white rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-200 shrink-0"
+                                        className="p-2 bg-emerald-500 text-white rounded-xl hover:scale-105 transition-all shadow-lg shadow-emerald-200 shrink-0 relative z-20"
                                     >
                                         <MessageCircle size={14} />
                                     </button>
@@ -149,7 +149,6 @@ export default function AdminDashboard() {
 
             if (results[0].status === 'fulfilled') setStats(results[0].value.data);
             if (results[1].status === 'fulfilled') {
-                // Sorting: Newest students first
                 const sortedForms = (results[1].value.data.forms || []).sort((a: Form, b: Form) =>
                     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
                 );
@@ -209,13 +208,12 @@ export default function AdminDashboard() {
         }
 
         setFilteredForms(results);
-        setCurrentPage(1); // Reset to page 1 on search/filter
+        setCurrentPage(1);
     }, [forms, timeFilter, activeTab, statusFilter, searchTerm, startDate, endDate]);
 
     const filteredAgents = agents.filter(a => a.name.toLowerCase().includes(searchTerm.toLowerCase()) || a.email.toLowerCase().includes(searchTerm.toLowerCase()));
     const filteredTeachers = teachers.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    // --- PAGINATION LOGIC ---
     const totalPages = Math.ceil(filteredForms.length / itemsPerPage);
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -252,10 +250,10 @@ export default function AdminDashboard() {
     };
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10 text-slate-900 font-sans">
+        <div className="min-h-screen bg-[#f8fafc] p-4 md:p-10 text-slate-900 font-sans relative">
             <PaymentAlertBanner alerts={paymentAlerts} />
 
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-6">
+            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-6 relative z-10">
                 <div>
                     <h1 className="text-4xl font-black italic tracking-tighter flex items-center gap-3">
                         <div className="p-2 bg-slate-900 rounded-xl text-white shadow-lg rotate-3"><LayoutDashboard size={28} /></div>
@@ -263,12 +261,12 @@ export default function AdminDashboard() {
                     </h1>
                     <div className="flex gap-2 mt-4 bg-white p-1 rounded-xl shadow-sm border border-slate-100">
                         {(['students', 'agents', 'teachers'] as const).map((mode) => (
-                            <button key={mode} onClick={() => { setViewMode(mode); setSearchTerm(""); setCurrentPage(1); }} className={`whitespace-nowrap px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === mode ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>{mode}</button>
+                            <button key={mode} onClick={() => { setViewMode(mode); setSearchTerm(""); setCurrentPage(1); }} className={`whitespace-nowrap px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all relative z-20 ${viewMode === mode ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}>{mode}</button>
                         ))}
                     </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 relative z-10">
                     {timeFilter === 'Custom' && (
                         <div className="flex items-center gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm animate-in fade-in slide-in-from-right-4">
                             <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="text-[10px] font-bold outline-none p-1" />
@@ -279,19 +277,19 @@ export default function AdminDashboard() {
 
                     <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
                         {(['All', 'Today', 'Week', 'Month', 'Custom'] as const).map((t) => (
-                            <button key={t} onClick={() => setTimeFilter(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${timeFilter === t ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>{t}</button>
+                            <button key={t} onClick={() => setTimeFilter(t)} className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all relative z-20 ${timeFilter === t ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>{t}</button>
                         ))}
                     </div>
 
-                    <button onClick={() => router.push('/admin/agents/create-form')} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-blue-900/10">
+                    <button onClick={() => router.push('/admin/agents/create-form')} className="flex items-center gap-2 bg-slate-900 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 transition-all shadow-xl shadow-blue-900/10 relative z-20">
                         <PlusCircle size={18} /> Create Student
                     </button>
 
-                    <button onClick={fetchData} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 shadow-sm transition-all active:scale-95"><RefreshCcw size={20} className={loading ? "animate-spin" : ""} /></button>
+                    <button onClick={fetchData} className="p-4 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-blue-600 shadow-sm transition-all active:scale-95 relative z-20"><RefreshCcw size={20} className={loading ? "animate-spin" : ""} /></button>
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10">
+            <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-10 relative z-10">
                 <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm">
                     <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center mb-3"><FileText /></div>
                     <p className="text-slate-400 text-[9px] font-black uppercase mb-1">Total Students</p>
@@ -323,12 +321,12 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden">
+            <div className="max-w-7xl mx-auto bg-white rounded-[2.5rem] shadow-xl border border-slate-100 overflow-hidden relative z-10">
                 <div className="p-8 border-b flex flex-col lg:flex-row justify-between items-center gap-8 bg-slate-50/30">
                     <div className="flex bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
                         {viewMode === 'students' ? (
                             (['All', 'Education Zone', 'DIB Education System'] as const).map((tab) => (
-                                <button key={tab} onClick={() => { setActiveTab(tab); setCurrentPage(1); }} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}</button>
+                                <button key={tab} onClick={() => { setActiveTab(tab); setCurrentPage(1); }} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all relative z-20 ${activeTab === tab ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-600'}`}>{tab === 'All' ? 'All Systems' : tab === 'Education Zone' ? 'EZ' : 'DIB'}</button>
                             ))
                         ) : <div className="px-6 py-2.5 text-[10px] font-black uppercase text-slate-600">Managing {viewMode}</div>}
                     </div>
@@ -373,7 +371,7 @@ export default function AdminDashboard() {
                                                 {form.assignedSubjects?.map((sub, idx) => (
                                                     <div key={idx} className="flex items-center justify-between bg-white border border-slate-200 p-2 rounded-xl shadow-sm">
                                                         <span className="text-[8px] font-black text-slate-400 uppercase truncate max-w-[60px]">{sub.subjectName}</span>
-                                                        <select value={sub.status || "Pending"} onChange={(e) => handleSubjectStatusChange(form._id, sub.subjectName, e.target.value)} className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none ${sub.status === 'Pass' ? 'bg-emerald-50 text-emerald-600' : sub.status === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-slate-50'}`}>
+                                                        <select value={sub.status || "Pending"} onChange={(e) => handleSubjectStatusChange(form._id, sub.subjectName, e.target.value)} className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none cursor-pointer ${sub.status === 'Pass' ? 'bg-emerald-50 text-emerald-600' : sub.status === 'Fail' ? 'bg-red-50 text-red-600' : 'bg-slate-50'}`}>
                                                             <option value="Pending">Pending</option>
                                                             <option value="Pass">Pass</option>
                                                             <option value="Fail">Fail</option>
@@ -383,11 +381,11 @@ export default function AdminDashboard() {
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                                                <button onClick={() => { setStudentToAssign(form); setShowAssignModal(true); }} className="p-2.5 bg-white border border-slate-200 rounded-xl hover:text-emerald-600 shadow-sm"><Layers size={16} /></button>
-                                                <button onClick={() => router.push(`/admin/forms/edit/${form._id}`)} className="p-2.5 bg-white border border-slate-200 rounded-xl hover:text-amber-600 shadow-sm"><Edit3 size={16} /></button>
-                                                <button onClick={() => { setSelectedForm(form); setIsPreviewOpen(true); }} className="p-2.5 bg-white border border-slate-200 rounded-xl hover:text-blue-600 shadow-sm"><Eye size={16} /></button>
-                                                <button onClick={() => deleteForm(form._id)} className="p-2.5 bg-white border border-slate-200 rounded-xl hover:text-red-600 shadow-sm"><Trash2 size={16} /></button>
+                                            <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all">
+                                                <button onClick={() => { setStudentToAssign(form); setShowAssignModal(true); }} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-emerald-600 shadow-sm transition-colors relative z-20"><Layers size={16} /></button>
+                                                <button onClick={() => router.push(`/admin/forms/edit/${form._id}`)} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-amber-600 shadow-sm transition-colors relative z-20"><Edit3 size={16} /></button>
+                                                <button onClick={() => { setSelectedForm(form); setIsPreviewOpen(true); }} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-blue-600 shadow-sm transition-colors relative z-20"><Eye size={16} /></button>
+                                                <button onClick={() => deleteForm(form._id)} className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-red-600 shadow-sm transition-colors relative z-20"><Trash2 size={16} /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -405,7 +403,7 @@ export default function AdminDashboard() {
                                         <td className="px-8 py-6 text-xs font-black"><Mail size={14} className="inline mr-2 text-slate-400" />{agent.email}</td>
                                         <td className="px-8 py-6 text-xl font-black text-indigo-700">{agent.formsCount}</td>
                                         <td className="px-8 py-6 text-right">
-                                            <button onClick={() => toggleAgentStatus(agent._id)} className={`p-3 rounded-xl ${agent.isBlocked ? 'text-emerald-600 bg-emerald-50' : 'text-red-600 bg-red-50'}`}>
+                                            <button onClick={() => toggleAgentStatus(agent._id)} className={`p-3 rounded-xl transition-all relative z-20 ${agent.isBlocked ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100' : 'text-red-600 bg-red-50 hover:bg-red-100'}`}>
                                                 {agent.isBlocked ? <Unlock size={18} /> : <Lock size={18} />}
                                             </button>
                                         </td>
@@ -420,7 +418,7 @@ export default function AdminDashboard() {
                                         </td>
                                         <td className="px-8 py-6 text-xs font-black"><Mail size={14} className="inline mr-2 text-slate-400" />{teacher.email}</td>
                                         <td className="px-8 py-6 text-xl font-black text-emerald-700">{teacher.assignedStudentsCount}</td>
-                                        <td className="px-8 py-6 text-right"><button className="p-3 bg-slate-50 rounded-xl hover:text-blue-600 transition-all"><Edit3 size={18} /></button></td>
+                                        <td className="px-8 py-6 text-right"><button className="p-3 bg-white border border-slate-100 rounded-xl text-slate-400 hover:text-blue-600 shadow-sm transition-all relative z-20"><Edit3 size={18} /></button></td>
                                     </tr>
                                 ))
                             )}
@@ -429,11 +427,11 @@ export default function AdminDashboard() {
                 </div>
 
                 {viewMode === 'students' && totalPages > 1 && (
-                    <div className="p-8 border-t flex justify-between items-center bg-slate-50/50">
+                    <div className="p-8 border-t flex justify-between items-center bg-slate-50/50 relative z-10">
                         <p className="text-[10px] font-black text-slate-400 uppercase">Page {currentPage} of {totalPages} ({filteredForms.length} students)</p>
                         <div className="flex gap-2">
-                            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronLeft size={18} /></button>
-                            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm"><ChevronRight size={18} /></button>
+                            <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm relative z-20"><ChevronLeft size={18} /></button>
+                            <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all shadow-sm relative z-20"><ChevronRight size={18} /></button>
                         </div>
                     </div>
                 )}
@@ -445,12 +443,12 @@ export default function AdminDashboard() {
 
             {isPreviewOpen && selectedForm && (
                 <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4">
-                    <div className="bg-white w-full max-w-5xl h-[92vh] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl">
-                        <div className="p-8 border-b flex justify-between items-center bg-white">
+                    <div className="bg-white w-full max-w-5xl h-[92vh] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl relative">
+                        <div className="p-8 border-b flex justify-between items-center bg-white relative z-10">
                             <h2 className="font-black uppercase text-2xl text-slate-800">Student File Preview</h2>
                             <div className="flex gap-4">
-                                <button onClick={() => handlePrint()} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase shadow-lg hover:bg-blue-700 transition-all"><Printer size={16} /> Print</button>
-                                <button onClick={() => setIsPreviewOpen(false)} className="p-3 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all"><X size={20} /></button>
+                                <button onClick={() => handlePrint()} className="flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase shadow-lg hover:bg-blue-700 transition-all relative z-20"><Printer size={16} /> Print</button>
+                                <button onClick={() => setIsPreviewOpen(false)} className="p-3 bg-slate-100 text-slate-400 rounded-2xl hover:bg-red-500 hover:text-white transition-all relative z-20"><X size={20} /></button>
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto p-12 bg-slate-50/50">
