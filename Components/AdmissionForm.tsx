@@ -30,7 +30,6 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
     const remainingBalance = totalFee - grandTotalPaid;
 
     // --- DUE DATES LOGIC ---
-    // Filter only pending installments to show on form
     const pendingInstallments = data?.installments?.filter((inst: any) => inst.status === 'pending') || [];
 
     return (
@@ -94,15 +93,19 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                 </div>
             </div>
 
-            {/* --- COURSE INFO --- */}
-            <div className="relative z-10 grid grid-cols-2 gap-8 mb-4">
+            {/* --- COURSE INFO (Updated with Class Mode) --- */}
+            <div className="relative z-10 grid grid-cols-3 gap-6 mb-4">
                 <div className="flex items-center gap-3 border-b-2 border-gray-300 pb-2">
-                    <span className="font-black uppercase text-gray-600">Applied Course:</span>
-                    <span className="text-lg font-bold text-black flex-1 uppercase">{getVal('course')}</span>
+                    <span className="font-black uppercase text-gray-600">Course:</span>
+                    <span className="text-md font-bold text-black flex-1 uppercase">{getVal('course')}</span>
                 </div>
                 <div className="flex items-center gap-3 border-b-2 border-gray-300 pb-2">
                     <span className="font-black uppercase text-gray-600">Duration:</span>
-                    <span className="text-lg font-bold text-black flex-1 uppercase">{getVal('duration')}</span>
+                    <span className="text-md font-bold text-black flex-1 uppercase">{getVal('duration')}</span>
+                </div>
+                <div className="flex items-center gap-3 border-b-2 border-gray-300 pb-2">
+                    <span className="font-black uppercase text-gray-600">Mode:</span>
+                    <span className="text-md font-bold text-blue-700 flex-1 uppercase">{getVal('classMode', 'Physical')}</span>
                 </div>
             </div>
 
@@ -136,12 +139,20 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                 </div>
                 <div className="flex items-end gap-4">
                     <span className="w-44 text-[11px] text-gray-600">Residential Address:</span>
-                    <span className="flex-1 border-b-2 border-black pb-1 normal-case font-normal uppercase">{getVal('address')}</span>
+                    <span className="flex-1 border-b-2 border-black pb-1 uppercase">{getVal('address')}</span>
                 </div>
             </div>
 
+            {/* --- REMARKS SECTION (Added) --- */}
+            <div className="relative z-10 mt-6 p-3 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50">
+                <span className="text-[10px] font-black text-gray-500 block mb-1 uppercase tracking-widest">Office Remarks / Special Notes:</span>
+                <p className="text-[11px] font-bold text-black leading-relaxed italic">
+                    {getVal('remarks', 'No additional remarks provided.')}
+                </p>
+            </div>
+
             {/* --- ACADEMIC BACKGROUND --- */}
-            <div className="relative z-10 mt-10">
+            <div className="relative z-10 mt-8">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="w-6 h-6 rounded-full text-white flex items-center justify-center text-xs font-bold shadow-md" style={{ backgroundColor: primaryHex }}>✓</div>
                     <h3 className="font-black text-lg uppercase" style={{ color: primaryHex }}>Academic Background:</h3>
@@ -173,7 +184,7 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
             </div>
 
             {/* --- FEE SECTION --- */}
-            <div className="relative z-10 mt-10 border-4 rounded-[2.5rem] p-8" style={{ borderColor: primaryHex, backgroundColor: 'rgba(249, 250, 251, 0.5)' }}>
+            <div className="relative z-10 mt-8 border-4 rounded-[2.5rem] p-8" style={{ borderColor: primaryHex, backgroundColor: 'rgba(249, 250, 251, 0.5)' }}>
                 <div className="absolute -top-5 left-12 bg-white px-8 border-2 rounded-full py-2 text-[12px] font-black italic shadow-md uppercase tracking-widest" style={{ borderColor: primaryHex, color: primaryHex }}>
                     Fee & Office Record
                 </div>
@@ -208,7 +219,7 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                     </div>
                 </div>
 
-                {/* --- INSTALLMENT DUE DATES (NEWLY ADDED) --- */}
+                {/* --- INSTALLMENT DUE DATES --- */}
                 {pendingInstallments.length > 0 && (
                     <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-300">
                         <p className="text-[10px] mb-2 text-gray-500 italic">Upcoming Installments Schedule:</p>

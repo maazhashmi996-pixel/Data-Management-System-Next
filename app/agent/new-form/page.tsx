@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from 'react';
 // IMPORTING YOUR API INSTANCE
 import api from '@/lib/axios';
-import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, UserPlus, Phone, Briefcase, Calendar, X, UserCircle } from 'lucide-react';
+import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, UserPlus, Phone, Briefcase, Calendar, X, UserCircle, Monitor, MessageSquare } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function CreateEnrollmentContent() {
@@ -25,6 +25,8 @@ function CreateEnrollmentContent() {
         course: '',
         duration: '',
         purpose: 'Pakistan',
+        classMode: 'Physical', // NEW FIELD
+        remarks: '',           // NEW FIELD
         formType: forcedType || 'Education Zone',
         admissionType: 'Regular',
         date: new Date().toISOString().split('T')[0],
@@ -64,7 +66,7 @@ function CreateEnrollmentContent() {
         }));
     }, [formData.officeUse.totalFee, formData.officeUse.registrationFee, formData.officeUse.noOfInstallments]);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>, section?: string, subSection?: string) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>, section?: string, subSection?: string) => {
         const { name, value } = e.target;
 
         setFormData((prev: any) => {
@@ -92,8 +94,6 @@ function CreateEnrollmentContent() {
         setLoading(true);
 
         try {
-            // UPDATED: Using your 'api' instance instead of raw axios
-            // This will automatically use your Railway URL and attach the Token
             const res = await api.post('/admin/add-form', formData);
 
             if (res.data.success) {
@@ -196,24 +196,45 @@ function CreateEnrollmentContent() {
                         </div>
                     </div>
 
-                    {/* 3. COURSE INFO */}
+                    {/* 3. COURSE INFO & CLASS MODE (UPDATED SECTION) */}
                     <div className="space-y-6">
                         <div className="flex items-center gap-2 text-slate-800 border-b-2 border-slate-100 pb-3">
                             <BookOpen className="text-purple-500" size={22} />
-                            <p className="font-black text-sm uppercase tracking-widest">Course Information</p>
+                            <p className="font-black text-sm uppercase tracking-widest">Course & Study Mode</p>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                            <input type="text" name="course" placeholder="COURSE NAME" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold uppercase" required />
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                            <input type="text" name="course" placeholder="COURSE NAME" onChange={handleChange} className="md:col-span-1 p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold uppercase" required />
+
                             <select name="duration" onChange={handleChange} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" required>
                                 <option value="">SELECT DURATION</option>
                                 <option value="3 Months">3 Months</option>
                                 <option value="6 Months">6 Months</option>
                                 <option value="1 Year">1 Year</option>
                             </select>
+
+                            <select name="classMode" onChange={handleChange} value={formData.classMode} className="p-4 bg-blue-50 border border-blue-200 rounded-2xl font-bold text-blue-700" required>
+                                <option value="Physical">Physical Class</option>
+                                <option value="Online">Online Class</option>
+                            </select>
+
                             <select name="purpose" onChange={handleChange} value={formData.purpose} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold" required>
                                 <option value="Pakistan">Pakistan</option>
                                 <option value="Study Abroad">Study Abroad</option>
                             </select>
+                        </div>
+
+                        {/* REMARKS FIELD ADDED HERE */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 ml-2 uppercase">Additional Remarks / Notes</label>
+                            <div className="relative">
+                                <MessageSquare className="absolute left-4 top-4 text-slate-400" size={18} />
+                                <textarea
+                                    name="remarks"
+                                    placeholder="Enter any additional information about the student..."
+                                    onChange={handleChange}
+                                    className="w-full p-4 pl-12 bg-slate-50 border border-slate-200 rounded-2xl min-h-[100px] focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                />
+                            </div>
                         </div>
                     </div>
 
