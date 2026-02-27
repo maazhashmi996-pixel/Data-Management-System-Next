@@ -1,8 +1,8 @@
 "use client";
 import { useState, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import api from '@/lib/axios'; // Central API instance use kar rahe hain
-import { ArrowLeft, User, BookOpen, CreditCard, School, Loader2, Mail, Clock, Globe, Calendar } from 'lucide-react';
+import api from '@/lib/axios';
+import { ArrowLeft, User, BookOpen, CreditCard, School, Loader2, Mail, Clock, Globe, Calendar, MessageSquare, Monitor } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 
 function FormContent() {
@@ -38,7 +38,10 @@ function FormContent() {
         balanceAmount: 0,
         noOfInstallments: '1',
         installmentAmount: 0,
-        installmentsData: [] as { amount: number; dueDate: string }[]
+        installmentsData: [] as { amount: number; dueDate: string }[],
+        // New Fields Added
+        classMode: 'Physical',
+        remarks: ''
     });
 
     const logoSrc = selectedType === 'Education Zone' ? '/ez-logo.png' : '/dib-logo.png';
@@ -95,6 +98,9 @@ function FormContent() {
                 course: formData.course?.trim(),
                 duration: formData.duration?.trim(),
                 purpose: formData.purpose,
+                // New Fields in Payload
+                classMode: formData.classMode,
+                remarks: formData.remarks?.trim() || "N/A",
                 qualification: {
                     matric: {
                         board: formData.matricBoard || "N/A",
@@ -123,7 +129,6 @@ function FormContent() {
                 }
             };
 
-            // YAHAN LOCALHOST HATA DIYA HAI
             const res = await api.post('/admin/add-form', payload);
 
             if (res.data.success) {
@@ -231,6 +236,17 @@ function FormContent() {
                     </div>
 
                     <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
+                            <Monitor size={10} /> Class Mode *
+                        </label>
+                        <select required className={`w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 focus:border-slate-400 ${isEZ ? 'border-orange-100' : 'border-indigo-100'}`}
+                            value={formData.classMode} onChange={e => setFormData({ ...formData, classMode: e.target.value })}>
+                            <option value="Physical">Physical Class</option>
+                            <option value="Online">Online Class</option>
+                        </select>
+                    </div>
+
+                    <div className="space-y-1">
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Mobile No</label>
                         <input required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.mobileNo} onChange={e => setFormData({ ...formData, mobileNo: e.target.value })} />
@@ -240,6 +256,14 @@ function FormContent() {
                         <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Date of Birth</label>
                         <input type="date" required className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
                             value={formData.dob} onChange={e => setFormData({ ...formData, dob: e.target.value })} />
+                    </div>
+
+                    <div className="md:col-span-2 space-y-1">
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1 flex items-center gap-1">
+                            <MessageSquare size={10} /> Remarks / Special Notes
+                        </label>
+                        <input placeholder="Enter any additional information..." className="w-full bg-slate-50 p-3.5 rounded-2xl outline-none text-sm font-bold border-2 border-transparent focus:border-slate-200"
+                            value={formData.remarks} onChange={e => setFormData({ ...formData, remarks: e.target.value })} />
                     </div>
 
                     <div className="md:col-span-3 space-y-1">
