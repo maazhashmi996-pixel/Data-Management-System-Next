@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, Suspense } from 'react';
-import axios from 'axios';
+// IMPORTING YOUR API INSTANCE
+import api from '@/lib/axios';
 import { Save, ArrowLeft, GraduationCap, DollarSign, User, BookOpen, UserPlus, Phone, Briefcase, Calendar, X, UserCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -39,13 +40,12 @@ function CreateEnrollmentContent() {
             monthlyInstallment: '0',
             classSchedule: '',
             issuedBy: 'Admin',
-            installmentStartDate: new Date().toISOString().split('T')[0] // NEW FIELD
+            installmentStartDate: new Date().toISOString().split('T')[0]
         }
     });
 
     const logoSrc = formData.formType === 'DIB Education System' ? '/dib-logo.png' : '/ez-logo.png';
 
-    // --- AUTO CALCULATION LOGIC ---
     useEffect(() => {
         const total = parseFloat(formData.officeUse.totalFee) || 0;
         const paid = parseFloat(formData.officeUse.registrationFee) || 0;
@@ -91,13 +91,10 @@ function CreateEnrollmentContent() {
         e.preventDefault();
         setLoading(true);
 
-        const API_URL = 'http://localhost:5000/api/admin/add-form';
-
         try {
-            const token = localStorage.getItem('token');
-            const res = await axios.post(API_URL, formData, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // UPDATED: Using your 'api' instance instead of raw axios
+            // This will automatically use your Railway URL and attach the Token
+            const res = await api.post('/admin/add-form', formData);
 
             if (res.data.success) {
                 alert("Admission Form Submitted Successfully!");
@@ -105,7 +102,7 @@ function CreateEnrollmentContent() {
             }
         } catch (error: any) {
             console.error("Submission Error:", error);
-            const errorMsg = error.response?.data?.error || error.response?.data?.message || "Submission failed";
+            const errorMsg = error.response?.data?.error || error.response?.data?.message || "Submission failed. Please check your connection.";
             alert(`Error: ${errorMsg}`);
         } finally {
             setLoading(false);
@@ -123,7 +120,7 @@ function CreateEnrollmentContent() {
                             <img src={logoSrc} alt="Logo" className="h-16 w-16 object-contain" />
                         </div>
                         <div>
-                            <button onClick={() => router.back()} className="flex items-center gap-1 text-slate-200 hover:text-white mb-1 text-xs font-bold uppercase">
+                            <button type="button" onClick={() => router.back()} className="flex items-center gap-1 text-slate-200 hover:text-white mb-1 text-xs font-bold uppercase">
                                 <ArrowLeft size={14} /> Back
                             </button>
                             <h2 className="text-2xl font-black uppercase tracking-tight">New Enrollment Form</h2>
