@@ -5,11 +5,10 @@ import axios from 'axios';
 import {
     Search, Plus, X, TrendingUp, Wallet, Users,
     Eye, RefreshCcw, CreditCard,
-    UserCheck, Clock, User, MapPin, GraduationCap, Calendar, AlertCircle, Loader2
+    UserCheck, Clock, User, MapPin, GraduationCap, Calendar, AlertCircle, Loader2,
+    ChevronLeft, ChevronRight, Filter
 } from 'lucide-react';
 
-// --- PRODUCTION CONFIGURATION ---
-// In production, use your actual domain. Localhost is just a fallback.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function AllFormsPage() {
@@ -22,22 +21,23 @@ export default function AllFormsPage() {
     const [selectedCSR, setSelectedCSR] = useState("All");
     const [isProcessing, setIsProcessing] = useState(false);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 50;
+
+    // Advanced Filter States
+    const [dateFilter, setDateFilter] = useState("all"); // all, today, week, month, custom
+    const [startDate, setStartDate] = useState("");
+    const [endDate, setEndDate] = useState("");
+
     // --- FETCH DATA ---
     const fetchForms = useCallback(async () => {
         try {
             setLoading(true);
             const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-            if (!token) {
-                console.error("No authentication token found");
-                // Optional: redirect to login
-            }
-
             const res = await axios.get(`${API_BASE_URL}/admin/forms`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-
-            // Handling different API response structures
             const data = res.data?.forms || (Array.isArray(res.data) ? res.data : []);
             setForms(data);
         } catch (err: any) {
@@ -51,49 +51,56 @@ export default function AllFormsPage() {
         fetchForms();
     }, [fetchForms]);
 
-    // --- HANDLERS ---
-    const clearFilters = () => {
-        setSearchTerm("");
-        setSelectedCSR("All");
+    // --- DATE FILTER LOGIC ---
+    const isWithinRange = (dateString: string) => {
+        if (!dateString) return false;
+        const date = new Date(dateString);
+        const now = new Date();
+
+        if (dateFilter === "today") {
+            return date.toDateString() === now.toDateString();
+        }
+        if (dateFilter === "week") {
+            const weekAgo = new Date();
+            weekAgo.setDate(now.getDate() - 7);
+            return date >= weekAgo;
+        }
+        if (dateFilter === "month") {
+            return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        }
+        if (dateFilter === "custom" && startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59);
+            return date >= start && date <= end;
+        }
+        return true;
     };
 
-    const handleAddInstallment = async (studentId: string) => {
-        const amount = prompt("Enter Installment Amount (PKR):");
-        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
-            if (amount) alert("Please enter a valid amount.");
-            return;
-        }
+    // --- FILTER & ANALYTICS LOGIC ---
+    const { filteredForms, stats, agentsList } = useMemo(() => {
+        // 1. Get unique agents for filter dropdown
+        const agents = Array.from(new Set(forms.map(f => f.agentName || f.officeUse?.issuedBy || "Admin")));
 
-        try {
-            setIsProcessing(true);
-            const token = localStorage.getItem('token');
-            const res = await axios.post(`${API_BASE_URL}/api/admin/forms/${studentId}/installment`,
-                {
-                    amount: Number(amount),
-                    amountPaid: Number(amount),
-                    paymentDate: new Date()
-                },
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
+        // 2. Filter forms based on Search, Agent, and Date
+        const filtered = forms.filter(f => {
+            const searchLower = searchTerm.toLowerCase();
+            const agentName = (f.agentName || f.officeUse?.issuedBy || "Admin");
+            const studentName = (f.studentName || "").toLowerCase();
+            const createdAt = f.createdAt || f.date;
 
-            if (res.status === 200 || res.status === 201) {
-                alert("✅ Installment recorded successfully!");
-                setShowModal(false);
-                fetchForms(); // Refresh the list
-            }
-        } catch (err: any) {
-            const errorMsg = err.response?.data?.message || "Server Error. Please try again.";
-            alert(`❌ Payment Failed: ${errorMsg}`);
-        } finally {
-            setIsProcessing(false);
-        }
-    };
+            const matchesSearch = studentName.includes(searchLower) || agentName.toLowerCase().includes(searchLower);
+            const matchesCSR = selectedCSR === "All" || agentName === selectedCSR;
+            const matchesDate = dateFilter === "all" || isWithinRange(createdAt);
 
-    // --- ANALYTICS CALCULATIONS ---
-    const stats = useMemo(() => {
+            return matchesSearch && matchesCSR && matchesDate;
+        });
+
+        // 3. Calculate Stats for the CURRENT filtered view (Agent-wise or Overall)
         let revenue = 0;
         let pending = 0;
-        forms.forEach(f => {
+
+        filtered.forEach(f => {
             const regFee = Number(f.officeUse?.registrationFee) || 0;
             const installments = f.feeHistory?.reduce((sum: number, h: any) => sum + (Number(h.amountPaid) || 0), 0) || 0;
             const instArraySum = f.installments?.filter((i: any) => i.status === 'Paid').reduce((sum: number, h: any) => sum + (Number(h.amount) || 0), 0) || 0;
@@ -101,46 +108,74 @@ export default function AllFormsPage() {
             revenue += (regFee + installments + instArraySum);
             pending += (Number(f.officeUse?.balanceAmount) || 0);
         });
-        return { total: forms.length, revenue, pending };
-    }, [forms]);
 
-    // --- FILTER LOGIC ---
-    const filteredForms = useMemo(() => {
-        return forms.filter(f => {
-            const searchLower = searchTerm.toLowerCase();
-            const agentName = (f.agentName || f.officeUse?.issuedBy || "Admin").toLowerCase();
-            const studentName = (f.studentName || "").toLowerCase();
+        return {
+            filteredForms: filtered,
+            stats: { total: filtered.length, revenue, pending },
+            agentsList: agents
+        };
+    }, [forms, searchTerm, selectedCSR, dateFilter, startDate, endDate]);
 
-            const matchesSearch = studentName.includes(searchLower) || agentName.includes(searchLower);
-            const matchesCSR = selectedCSR === "All" || (f.agentName === selectedCSR || f.officeUse?.issuedBy === selectedCSR);
+    // --- PAGINATION CALCULATION ---
+    const totalPages = Math.ceil(filteredForms.length / itemsPerPage);
+    const paginatedForms = filteredForms.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
-            return matchesSearch && matchesCSR;
-        });
-    }, [forms, searchTerm, selectedCSR]);
+    const clearFilters = () => {
+        setSearchTerm("");
+        setSelectedCSR("All");
+        setDateFilter("all");
+        setStartDate("");
+        setEndDate("");
+        setCurrentPage(1);
+    };
+
+    const handleAddInstallment = async (studentId: string) => {
+        const amount = prompt("Enter Installment Amount (PKR):");
+        if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) return;
+
+        try {
+            setIsProcessing(true);
+            const token = localStorage.getItem('token');
+            await axios.post(`${API_BASE_URL}/api/admin/forms/${studentId}/installment`,
+                { amount: Number(amount), amountPaid: Number(amount), paymentDate: new Date() },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            alert("✅ Installment recorded!");
+            setShowModal(false);
+            fetchForms();
+        } catch (err: any) {
+            alert(`❌ Error: ${err.response?.data?.message || "Failed"}`);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
     return (
         <div className="p-4 md:p-8 bg-slate-50 min-h-screen text-black font-sans selection:bg-blue-100">
             <div className="max-w-7xl mx-auto">
 
-                {/* --- STATS SECTION --- */}
+                {/* --- STATS SECTION (Now Adaptive to Agent/Date Filters) --- */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                     <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-blue-600 flex items-center justify-between group transition-all hover:-translate-y-1">
                         <div>
-                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Total Students</p>
+                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">{selectedCSR === 'All' ? 'Total Students' : `${selectedCSR}'s Students`}</p>
                             <h3 className="text-4xl font-black mt-1">{stats.total}</h3>
                         </div>
                         <Users className="text-blue-100 group-hover:text-blue-200 transition-colors" size={60} />
                     </div>
                     <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-green-500 flex items-center justify-between group transition-all hover:-translate-y-1">
                         <div>
-                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Revenue Collected</p>
+                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Revenue ({dateFilter})</p>
                             <h3 className="text-3xl font-black mt-1 text-green-600">Rs. {stats.revenue.toLocaleString()}</h3>
                         </div>
                         <TrendingUp className="text-green-100 group-hover:text-green-200 transition-colors" size={60} />
                     </div>
                     <div className="bg-white p-8 rounded-[2.5rem] shadow-xl border-b-4 border-red-500 flex items-center justify-between group transition-all hover:-translate-y-1">
                         <div>
-                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Total Pending</p>
+                            <p className="text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Pending Dues</p>
                             <h3 className="text-3xl font-black mt-1 text-red-600">Rs. {stats.pending.toLocaleString()}</h3>
                         </div>
                         <Wallet className="text-red-100 group-hover:text-red-200 transition-colors" size={60} />
@@ -159,33 +194,77 @@ export default function AllFormsPage() {
                     </div>
                 </div>
 
-                {/* --- FILTERS --- */}
+                {/* --- ADVANCED FILTERS --- */}
                 <div className="bg-white p-6 rounded-[2.5rem] shadow-lg mb-8 border border-slate-100">
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="relative col-span-1 md:col-span-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                        {/* Search */}
+                        <div className="relative lg:col-span-4">
                             <Search className="absolute left-4 top-4 text-slate-400" size={20} />
                             <input
                                 type="text"
-                                placeholder="Search by Student or Agent..."
-                                className="w-full pl-12 pr-4 py-4 bg-slate-100 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all focus:bg-white"
+                                placeholder="Search Name or Agent..."
+                                className="w-full pl-12 pr-4 py-4 bg-slate-100 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all"
                                 value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                             />
                         </div>
-                        <select
-                            value={selectedCSR}
-                            className="bg-slate-900 text-white p-4 rounded-2xl font-black outline-none cursor-pointer hover:bg-black transition-colors appearance-none"
-                            onChange={(e) => setSelectedCSR(e.target.value)}
-                        >
-                            <option value="All">All CSRs / Agents</option>
-                            <option value="Admin">Admin</option>
-                        </select>
-                        <button
-                            onClick={clearFilters}
-                            className="px-6 py-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 uppercase hover:bg-red-600 hover:text-white transition-all group"
-                        >
-                            <RefreshCcw size={16} className="group-hover:rotate-180 transition-transform duration-500" /> Reset Filters
-                        </button>
+
+                        {/* Agent Filter */}
+                        <div className="lg:col-span-2">
+                            <select
+                                value={selectedCSR}
+                                className="w-full bg-slate-900 text-white p-4 rounded-2xl font-black outline-none cursor-pointer h-full appearance-none"
+                                onChange={(e) => { setSelectedCSR(e.target.value); setCurrentPage(1); }}
+                            >
+                                <option value="All">All Agents</option>
+                                {agentsList.map(agent => (
+                                    <option key={agent} value={agent}>{agent}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Date Preset Filter */}
+                        <div className="lg:col-span-2">
+                            <select
+                                value={dateFilter}
+                                className="w-full bg-blue-600 text-white p-4 rounded-2xl font-black outline-none cursor-pointer h-full appearance-none"
+                                onChange={(e) => { setDateFilter(e.target.value); setCurrentPage(1); }}
+                            >
+                                <option value="all">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+                        </div>
+
+                        {/* Custom Date Inputs */}
+                        {dateFilter === "custom" && (
+                            <div className="lg:col-span-3 flex gap-2">
+                                <input
+                                    type="date"
+                                    className="bg-slate-100 p-2 rounded-xl font-bold text-xs flex-1"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                />
+                                <input
+                                    type="date"
+                                    className="bg-slate-100 p-2 rounded-xl font-bold text-xs flex-1"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {/* Reset */}
+                        <div className={dateFilter === "custom" ? "lg:col-span-1" : "lg:col-span-4"}>
+                            <button
+                                onClick={clearFilters}
+                                className="w-full h-full px-4 bg-red-50 text-red-600 rounded-2xl text-[10px] font-black flex items-center justify-center gap-2 uppercase hover:bg-red-600 hover:text-white transition-all group"
+                            >
+                                <RefreshCcw size={16} className="group-hover:rotate-180 transition-transform duration-500" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -211,8 +290,8 @@ export default function AllFormsPage() {
                                             </div>
                                         </td>
                                     </tr>
-                                ) : filteredForms.length > 0 ? (
-                                    filteredForms.map((form) => (
+                                ) : paginatedForms.length > 0 ? (
+                                    paginatedForms.map((form) => (
                                         <tr key={form._id} className="hover:bg-blue-50/40 transition-all group">
                                             <td className="p-8">
                                                 <p className="font-black text-slate-900 uppercase text-lg tracking-tighter">{form.studentName}</p>
@@ -224,10 +303,10 @@ export default function AllFormsPage() {
                                             </td>
                                             <td className="p-8">
                                                 <p className="font-bold uppercase text-sm text-slate-700">{form.course}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">{form.duration || 'Flexible Duration'}</p>
+                                                <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5 tracking-wider">{form.duration || 'Flexible'}</p>
                                             </td>
                                             <td className="p-8">
-                                                <p className="font-black text-sm text-red-600 mb-2 flex items-center gap-1">
+                                                <p className="font-black text-sm text-red-600 mb-2">
                                                     Due: Rs. {Number(form.officeUse?.balanceAmount || 0).toLocaleString()}
                                                 </p>
                                                 <div className="w-full max-w-[150px] h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -240,7 +319,7 @@ export default function AllFormsPage() {
                                             <td className="p-8 text-center">
                                                 <button
                                                     onClick={() => { setSelectedStudent(form); setShowModal(true); }}
-                                                    className="inline-flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] hover:bg-blue-600 transition-all shadow-lg hover:shadow-blue-200 uppercase tracking-widest"
+                                                    className="inline-flex items-center gap-2 px-8 py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] hover:bg-blue-600 transition-all shadow-lg uppercase tracking-widest"
                                                 >
                                                     <Eye size={16} /> Open Profile
                                                 </button>
@@ -249,21 +328,41 @@ export default function AllFormsPage() {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={4} className="p-24 text-center">
-                                            <div className="flex flex-col items-center gap-2 opacity-30">
-                                                <AlertCircle size={48} />
-                                                <p className="font-black uppercase tracking-widest">No Records Found</p>
-                                            </div>
-                                        </td>
+                                        <td colSpan={4} className="p-24 text-center text-slate-300 font-black uppercase tracking-widest">No Records Found</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
+
+                    {/* --- PAGINATION CONTROLS --- */}
+                    {totalPages > 1 && (
+                        <div className="p-8 bg-slate-50 border-t flex items-center justify-between">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                Page {currentPage} of {totalPages} ({filteredForms.length} Total)
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={currentPage === 1}
+                                    onClick={() => setCurrentPage(prev => prev - 1)}
+                                    className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <button
+                                    disabled={currentPage === totalPages}
+                                    onClick={() => setCurrentPage(prev => prev + 1)}
+                                    className="p-3 bg-white border rounded-xl disabled:opacity-30 hover:bg-slate-100 transition-all"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* --- 🟢 STUDENT PROFILE MODAL --- */}
+            {/* --- STUDENT PROFILE MODAL --- */}
             {showModal && selectedStudent && (
                 <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-xl z-[999] flex items-center justify-center p-4">
                     <div className="bg-white w-full max-w-6xl rounded-[3.5rem] shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in duration-300">
@@ -278,7 +377,7 @@ export default function AllFormsPage() {
                                     <h2 className="text-4xl font-black uppercase italic tracking-tighter leading-none">{selectedStudent.studentName}</h2>
                                     <div className="flex flex-wrap gap-4 mt-3">
                                         <span className="bg-white/20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">ID: {selectedStudent._id.slice(-6).toUpperCase()}</span>
-                                        <span className="bg-white/20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">{selectedStudent.formType}</span>
+                                        <span className="bg-white/20 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest">Agent: {selectedStudent.agentName || selectedStudent.officeUse?.issuedBy || "Admin"}</span>
                                     </div>
                                 </div>
                             </div>
@@ -286,8 +385,7 @@ export default function AllFormsPage() {
                         </div>
 
                         <div className="p-8 md:p-12 overflow-y-auto grid grid-cols-1 lg:grid-cols-12 gap-12 custom-scrollbar">
-
-                            {/* LEFT: INFO */}
+                            {/* LEFT INFO SECTION */}
                             <div className="lg:col-span-7 space-y-12">
                                 <section>
                                     <h4 className="text-[10px] font-black text-slate-400 uppercase mb-6 flex items-center gap-2 tracking-[0.3em] border-b pb-4"><User size={16} className="text-blue-500" /> Biological Information</h4>
@@ -305,12 +403,8 @@ export default function AllFormsPage() {
                                             <p className="font-black text-blue-600 text-lg">{selectedStudent.mobileNo}</p>
                                         </div>
                                         <div className="space-y-1">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Digital Mail</p>
-                                            <p className="font-black text-slate-800 truncate text-lg">{selectedStudent.email || 'N/A'}</p>
-                                        </div>
-                                        <div className="col-span-full border-t pt-6">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase mb-1 tracking-widest flex items-center gap-1"><MapPin size={12} /> Permanent Residence</p>
-                                            <p className="font-bold text-slate-700 text-base leading-relaxed">{selectedStudent.address || 'Address not provided in records'}</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Address</p>
+                                            <p className="font-bold text-slate-700 text-sm leading-relaxed">{selectedStudent.address || 'N/A'}</p>
                                         </div>
                                     </div>
                                 </section>
@@ -320,97 +414,62 @@ export default function AllFormsPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div className="bg-blue-50/50 border-2 border-blue-100 p-8 rounded-[2.5rem]">
                                             <p className="text-[10px] font-black text-blue-600 uppercase mb-4 tracking-[0.2em]">Secondary School</p>
-                                            <div className="space-y-2 text-sm font-bold">
-                                                <p className="flex justify-between">Board: <span className="text-slate-900 uppercase">{selectedStudent.qualification?.matric?.board || 'N/A'}</span></p>
-                                                <p className="flex justify-between">Marks: <span className="text-slate-900">{selectedStudent.qualification?.matric?.marks || 'N/A'}</span></p>
-                                                <p className="flex justify-between">Year: <span className="text-slate-900">{selectedStudent.qualification?.matric?.year || 'N/A'}</span></p>
-                                            </div>
+                                            <p className="text-sm font-bold">Marks: {selectedStudent.qualification?.matric?.marks || 'N/A'}</p>
+                                            <p className="text-sm font-bold">Board: {selectedStudent.qualification?.matric?.board || 'N/A'}</p>
                                         </div>
                                         <div className="bg-purple-50/50 border-2 border-purple-100 p-8 rounded-[2.5rem]">
                                             <p className="text-[10px] font-black text-purple-600 uppercase mb-4 tracking-[0.2em]">Higher Secondary</p>
-                                            <div className="space-y-2 text-sm font-bold">
-                                                <p className="flex justify-between">Board: <span className="text-slate-900 uppercase">{selectedStudent.qualification?.inter?.board || 'N/A'}</span></p>
-                                                <p className="flex justify-between">Marks: <span className="text-slate-900">{selectedStudent.qualification?.inter?.marks || 'N/A'}</span></p>
-                                                <p className="flex justify-between">Year: <span className="text-slate-900">{selectedStudent.qualification?.inter?.year || 'N/A'}</span></p>
-                                            </div>
+                                            <p className="text-sm font-bold">Marks: {selectedStudent.qualification?.inter?.marks || 'N/A'}</p>
+                                            <p className="text-sm font-bold">Board: {selectedStudent.qualification?.inter?.board || 'N/A'}</p>
                                         </div>
                                     </div>
                                 </section>
                             </div>
 
-                            {/* RIGHT: LEDGER */}
+                            {/* RIGHT LEDGER SECTION */}
                             <div className="lg:col-span-5 space-y-8">
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2 tracking-[0.3em] border-b pb-4"><CreditCard size={16} className="text-green-600" /> Financial Audit</h4>
-
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-slate-950 text-white p-6 rounded-3xl shadow-xl">
-                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Gross Total</p>
+                                        <p className="text-[8px] font-black text-slate-400 uppercase mb-1 tracking-widest">Gross Total</p>
                                         <p className="text-2xl font-black">Rs. {Number(selectedStudent.officeUse?.totalFee).toLocaleString()}</p>
                                     </div>
                                     <div className="bg-red-600 text-white p-6 rounded-3xl shadow-xl">
-                                        <p className="text-[8px] font-black text-red-100 uppercase tracking-widest mb-1">Outstanding</p>
+                                        <p className="text-[8px] font-black text-red-100 uppercase mb-1 tracking-widest">Outstanding</p>
                                         <p className="text-2xl font-black">Rs. {Number(selectedStudent.officeUse?.balanceAmount).toLocaleString()}</p>
                                     </div>
                                 </div>
 
                                 <div className="bg-white border-2 border-slate-100 rounded-[3rem] overflow-hidden flex flex-col shadow-2xl min-h-[400px]">
-                                    <div className="bg-slate-50 px-8 py-5 border-b flex justify-between items-center">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Transaction History</span>
-                                        <div className="flex items-center gap-1 px-3 py-1 bg-slate-900 text-white rounded-full text-[8px] font-black uppercase">
-                                            <Clock size={10} /> {selectedStudent.officeUse?.noOfInstallments || 1} Installment Plan
-                                        </div>
+                                    <div className="bg-slate-50 px-8 py-5 border-b">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">History</span>
                                     </div>
-
-                                    <div className="p-8 space-y-4 overflow-y-auto max-h-[400px] custom-scrollbar">
-                                        {/* Registration */}
-                                        <div className="flex justify-between items-center p-5 bg-blue-50/50 rounded-2xl border-l-4 border-blue-600 shadow-sm">
-                                            <div>
-                                                <p className="text-xs font-black uppercase text-slate-800">Registration Fee</p>
-                                                <p className="text-[9px] font-bold text-blue-600/70 uppercase">Paid at Enrollment</p>
-                                            </div>
+                                    <div className="p-8 space-y-4 overflow-y-auto max-h-[300px] custom-scrollbar">
+                                        {/* Reg Fee */}
+                                        <div className="flex justify-between items-center p-5 bg-blue-50/50 rounded-2xl border-l-4 border-blue-600">
+                                            <p className="text-xs font-black uppercase text-slate-800">Registration</p>
                                             <p className="font-black text-lg text-blue-700">Rs. {Number(selectedStudent.officeUse?.registrationFee).toLocaleString()}</p>
                                         </div>
-
-                                        {/* Dynamic Payments */}
-                                        {(selectedStudent.installments?.length > 0) ? (
-                                            selectedStudent.installments.map((inst: any, i: number) => {
-                                                const isPaid = inst.status === 'Paid';
-                                                return (
-                                                    <div key={i} className={`flex justify-between items-center p-5 rounded-2xl border-l-4 shadow-sm transition-all ${isPaid ? 'bg-green-50 border-green-600' : 'bg-white border-slate-200 opacity-60'}`}>
-                                                        <div>
-                                                            <p className="text-xs font-black uppercase text-slate-800">Installment #{i + 1}</p>
-                                                            <p className="text-[9px] font-bold text-slate-400 uppercase">Due: {new Date(inst.dueDate).toLocaleDateString('en-GB')}</p>
-                                                        </div>
-                                                        <p className={`font-black text-lg ${isPaid ? 'text-green-600' : 'text-slate-400'}`}>Rs. {inst.amount?.toLocaleString()}</p>
-                                                    </div>
-                                                );
-                                            })
-                                        ) : (
-                                            selectedStudent.feeHistory?.map((h: any, i: number) => (
-                                                <div key={i} className="flex justify-between items-center p-5 bg-white border border-slate-100 rounded-2xl border-l-4 border-green-500 shadow-sm">
-                                                    <div>
-                                                        <p className="text-xs font-black uppercase text-slate-800">Installment Record</p>
-                                                        <p className="text-[9px] font-bold text-slate-400 uppercase">{new Date(h.datePaid || h.createdAt).toLocaleDateString()}</p>
-                                                    </div>
-                                                    <p className="font-black text-lg text-green-600">+ Rs. {Number(h.amountPaid).toLocaleString()}</p>
-                                                </div>
-                                            ))
-                                        )}
+                                        {/* Installments */}
+                                        {selectedStudent.feeHistory?.map((h: any, i: number) => (
+                                            <div key={i} className="flex justify-between items-center p-5 bg-green-50/50 rounded-2xl border-l-4 border-green-600">
+                                                <p className="text-xs font-black uppercase text-slate-800">Installment</p>
+                                                <p className="font-black text-lg text-green-700">Rs. {Number(h.amountPaid).toLocaleString()}</p>
+                                            </div>
+                                        ))}
                                     </div>
-
-                                    <div className="p-8 bg-slate-50 border-t mt-auto">
+                                    <div className="p-8 bg-slate-50 mt-auto">
                                         {Number(selectedStudent.officeUse?.balanceAmount) > 0 ? (
                                             <button
                                                 disabled={isProcessing}
                                                 onClick={() => handleAddInstallment(selectedStudent._id)}
-                                                className="w-full bg-slate-900 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 hover:bg-blue-600 disabled:bg-slate-400 active:scale-95 transition-all shadow-xl uppercase text-xs tracking-[0.2em]"
+                                                className="w-full bg-slate-900 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 hover:bg-blue-600 transition-all uppercase text-xs tracking-[0.2em]"
                                             >
-                                                {isProcessing ? <Loader2 className="animate-spin" size={20} /> : <Plus size={20} />}
-                                                {isProcessing ? "Processing..." : "Record Payment"}
+                                                {isProcessing ? <Loader2 className="animate-spin" /> : <Plus />} Record Payment
                                             </button>
                                         ) : (
-                                            <div className="w-full bg-green-600 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 shadow-xl uppercase text-xs tracking-[0.2em]">
-                                                <UserCheck size={20} /> Account Settled
+                                            <div className="w-full bg-green-600 text-white font-black py-5 rounded-3xl flex items-center justify-center gap-3 uppercase text-xs tracking-[0.2em]">
+                                                <UserCheck /> Account Settled
                                             </div>
                                         )}
                                     </div>
@@ -425,7 +484,6 @@ export default function AllFormsPage() {
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
             `}</style>
         </div>
     );
