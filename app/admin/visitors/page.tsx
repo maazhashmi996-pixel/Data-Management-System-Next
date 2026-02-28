@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import api from '@/lib/axios'; // Aapki axios wali file
+import api from '@/lib/axios'; // Ensure karein ke yahan baseURL backend/api tak hai
 import {
     UserPlus, Search, Calendar, Phone, UserCheck,
     Trash2, Plus, Save, X, Edit3, Loader2
@@ -34,10 +34,11 @@ export default function VisitorManagement() {
     const fetchVisitors = async () => {
         setLoading(true);
         try {
-            // Note: Agar backend route '/visitor' hai to change kar lein
+            console.log("Fetching visitors from database...");
             const res = await api.get('/visitors');
             if (res.data.success) {
                 setVisitors(res.data.data);
+                console.log("Data fetched successfully:", res.data.data);
             }
         } catch (error: any) {
             console.error("Database load fail:", error.response?.data || error.message);
@@ -48,31 +49,49 @@ export default function VisitorManagement() {
 
     useEffect(() => {
         fetchVisitors();
-        // Set Default AttendedBy from LocalStorage
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
-            const userName = JSON.parse(storedUser).name;
-            setFormData(prev => ({ ...prev, attendedBy: userName }));
+            try {
+                const userName = JSON.parse(storedUser).name;
+                setFormData(prev => ({ ...prev, attendedBy: userName }));
+            } catch (e) {
+                console.error("User data parsing error");
+            }
         }
     }, []);
 
     // --- 2. SAVE OR UPDATE (Railway Backend) ---
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setLoading(true);
+        console.log("Attempting to save:", formData);
+
         try {
+            let res;
             if (editingId) {
                 // Update Existing (PUT)
-                const res = await api.put(`/visitors/${editingId}`, formData);
-                if (res.data.success) alert("Record Update hogya!");
+                console.log(`Updating record: ${editingId}`);
+                res = await api.put(`/visitors/${editingId}`, formData);
             } else {
                 // Save New (POST)
-                const res = await api.post('/visitors', formData);
-                if (res.data.success) alert("Database mein save hogya!");
+                console.log("Creating new record...");
+                res = await api.post('/visitors', formData);
             }
-            closeModal();
-            fetchVisitors();
+
+            console.log("Server Response:", res.data);
+
+            if (res.data.success) {
+                alert(editingId ? "Record Update hogya!" : "Database mein save hogya!");
+                closeModal();
+                await fetchVisitors(); // Refresh list after save
+            } else {
+                alert("Server returned success: false");
+            }
         } catch (error: any) {
-            alert(error.response?.data?.message || "Action failed!");
+            console.error("API Error Detail:", error.response?.data || error.message);
+            alert("Database Error: " + (error.response?.data?.message || "Action failed!"));
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -82,15 +101,17 @@ export default function VisitorManagement() {
             try {
                 const res = await api.delete(`/visitors/${id}`);
                 if (res.data.success) {
+                    alert("Deleted Successfully");
                     fetchVisitors();
                 }
             } catch (error: any) {
+                console.error("Delete Error:", error.response?.data || error.message);
                 alert("Delete nahi ho saka!");
             }
         }
     };
 
-    // --- 4. EDIT PREPARATION ---
+    // --- 4. MODAL & EDIT HELPERS ---
     const handleEdit = (visitor: Visitor) => {
         setEditingId(visitor._id || null);
         setFormData({
@@ -105,16 +126,15 @@ export default function VisitorManagement() {
     const closeModal = () => {
         setIsModalOpen(false);
         setEditingId(null);
-        // Reset form but keep 'attendedBy' persistent
         const storedUser = localStorage.getItem('user');
         const userName = storedUser ? JSON.parse(storedUser).name : '';
         setFormData({ name: '', phone: '', purpose: '', attendedBy: userName });
     };
 
-    const filteredVisitors = visitors.filter(v =>
+    const filteredVisitors = Array.isArray(visitors) ? visitors.filter(v =>
         v.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.phone?.includes(searchTerm)
-    );
+    ) : [];
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-10 font-sans">
@@ -150,7 +170,7 @@ export default function VisitorManagement() {
                     </div>
                     <div>
                         <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Total Logs</p>
-                        <p className="text-slate-900 font-black text-lg italic italic">Railway Cloud DB</p>
+                        <p className="text-slate-900 font-black text-lg italic">Railway Cloud DB</p>
                     </div>
                 </div>
 
@@ -184,7 +204,7 @@ export default function VisitorManagement() {
                                     <td className="p-8">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-all uppercase font-black text-slate-600">
-                                                {v.name.charAt(0)}
+                                                {v.name?.charAt(0) || 'V'}
                                             </div>
                                             <div>
                                                 <div className="text-slate-900 uppercase font-black tracking-tight">{v.name}</div>
@@ -201,9 +221,9 @@ export default function VisitorManagement() {
                                     </td>
                                     <td className="p-8 text-xs">
                                         <div className="flex items-center gap-2 text-slate-900">
-                                            <Calendar size={14} className="text-blue-500" /> {v.date || 'Today'}
+                                            <Calendar size={14} className="text-blue-500" /> {v.date}
                                         </div>
-                                        <div className="text-[10px] text-slate-400 mt-1 italic">{v.time || 'Check-in'}</div>
+                                        <div className="text-[10px] text-slate-400 mt-1 italic">{v.time}</div>
                                     </td>
                                     <td className="p-8">
                                         <span className="bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] border border-blue-100 uppercase font-black flex items-center gap-2 w-fit">
@@ -266,8 +286,9 @@ export default function VisitorManagement() {
                                     onChange={e => setFormData({ ...formData, attendedBy: e.target.value })} value={formData.attendedBy} />
                             </div>
 
-                            <button type="submit" className="w-full py-6 bg-blue-600 hover:bg-slate-900 text-white rounded-[2rem] font-black uppercase transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20">
-                                <Save size={20} /> {editingId ? 'Update Record' : 'Save to Cloud'}
+                            <button type="submit" disabled={loading} className="w-full py-6 bg-blue-600 hover:bg-slate-900 text-white rounded-[2rem] font-black uppercase transition-all flex items-center justify-center gap-3 shadow-xl shadow-blue-500/20 disabled:opacity-50">
+                                {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                                {editingId ? 'Update Record' : 'Save to Cloud'}
                             </button>
                         </form>
                     </div>
