@@ -13,9 +13,9 @@ import {
     ClipboardList,
     GraduationCap,
     BookOpenCheck,
-    UserPlus, // Icon for Daily Visitors
-    Search,
-    CalendarCheck // Attendance ke liye naya icon
+    UserPlus,
+    CalendarCheck,
+    Globe // Naya icon Study Abroad ke liye
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -33,8 +33,9 @@ export default function Sidebar() {
     // --- ADMIN MENU CONFIGURATION ---
     const adminMenu = [
         { name: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard size={20} /> },
+        { name: 'Study Abroad', path: '/admin/study-abroad', icon: <Globe size={20} /> }, // Naya Section
         { name: 'Daily Visitors', path: '/admin/visitors', icon: <UserPlus size={20} /> },
-        { name: 'Staff Attendance', path: '/admin/attendance', icon: <CalendarCheck size={20} /> }, // Naya Attendance Section
+        { name: 'Staff Attendance', path: '/admin/attendance', icon: <CalendarCheck size={20} /> },
         { name: 'Manage Agents', path: '/admin/agents', icon: <Users size={20} /> },
         { name: 'Faculty Directory', path: '/admin/teacher', icon: <GraduationCap size={20} /> },
         { name: 'All Student Forms', path: '/admin/forms', icon: <FileText size={20} /> },
@@ -44,14 +45,14 @@ export default function Sidebar() {
     // --- AGENT MENU CONFIGURATION ---
     const agentMenu = [
         { name: 'My Dashboard', path: '/agent/dashboard', icon: <LayoutDashboard size={20} /> },
+        { name: 'Study Abroad', path: '/agent/study-abroad', icon: <Globe size={20} /> }, // Naya Section
         { name: 'New Admission', path: '/agent/new-form', icon: <PlusCircle size={20} /> },
         { name: 'Daily Visitors', path: '/admin/visitors', icon: <UserPlus size={20} /> },
-        { name: 'Attendance Record', path: '/admin/attendance', icon: <CalendarCheck size={20} /> }, // Agent ke liye view record
+        { name: 'Attendance Record', path: '/admin/attendance', icon: <CalendarCheck size={20} /> },
         { name: 'Exam Booking', path: '/agent/exam-booking', icon: <BookOpenCheck size={20} /> },
         { name: 'My Submissions', path: '/agent/my-forms', icon: <ClipboardList size={20} /> },
     ];
 
-    // Determine which menu to show
     const menuItems = user?.role === 'admin' ? adminMenu : agentMenu;
 
     const handleLogout = () => {
