@@ -112,6 +112,7 @@ export default function AdminCreateApplication() {
                             <div className="bg-slate-800 p-6 rounded-2xl text-white">
                                 <h3 className="text-blue-400 font-bold mb-4 uppercase text-xs flex items-center gap-2"><ShieldCheck size={14} /> Admin Controls</h3>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <input type="number" placeholder="Commission (PKR)" className="w-full p-4 rounded-xl bg-slate-700 text-white placeholder-slate-300 border border-slate-600" onChange={e => setFormData({ ...formData, adminControls: { ...formData.adminControls, commissionAmount: Number(e.target.value) } })} />
                                     <select className="w-full p-4 rounded-xl bg-slate-700 text-white font-bold border border-slate-600" onChange={e => setFormData({ ...formData, adminControls: { ...formData.adminControls, initialStatus: e.target.value } })}>
                                         <option value="Processing">PROCESSING</option>
                                         <option value="In Review">IN REVIEW</option>
