@@ -136,7 +136,7 @@ export default function ProcessApplication() {
                                     <h2 className="font-black text-slate-800 uppercase tracking-[0.15em] text-lg">Course Assignment</h2>
                                 </div>
                                 <div className="space-y-6">
-                                    <input placeholder="Intake *" required className={inputStyle} onChange={e => setFormData({ ...formData, courseDetails: { ...formData.courseDetails, intake: e.target.value } })} value={formData.courseDetails.courseName || ''} />
+                                    <input placeholder="Intake *" required className={inputStyle} onChange={e => setFormData({ ...formData, courseDetails: { ...formData.courseDetails, intake: e.target.value } })} value={formData.courseDetails.intake || ''} />
                                     <input placeholder="University *" required className={inputStyle} onChange={e => setFormData({ ...formData, courseDetails: { ...formData.courseDetails, university: e.target.value } })} value={formData.courseDetails.university || ''} />
                                     <input placeholder="Course Name *" required className={inputStyle} onChange={e => setFormData({ ...formData, courseDetails: { ...formData.courseDetails, courseName: e.target.value } })} value={formData.courseDetails.courseName || ''} />
                                     <input placeholder="Course Type *" required className={inputStyle} onChange={e => setFormData({ ...formData, courseDetails: { ...formData.courseDetails, courseType: e.target.value } })} value={formData.courseDetails.courseType || ''} />
