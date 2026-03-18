@@ -7,7 +7,9 @@ interface FormProps {
 }
 
 const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref) => {
+    console.log("AdmissionForm ko mila hua data:", data);
     const isEZ = type === 'Education Zone';
+
 
     // --- PURE HEX COLORS (Anti-Crash) ---
     const primaryHex = isEZ ? '#ea580c' : '#3730a3';
@@ -16,9 +18,17 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
     // Logo Logic
     const logoSrc = isEZ ? '/ez-logo.png' : '/dib-logo.png';
 
-    // Helper safely get values
     const getVal = (path: string, defaultValue = '________________') => {
-        return path.split('.').reduce((obj, key) => obj?.[key], data) || defaultValue;
+        const keys = path.split('.');
+        let current = data;
+
+        for (const key of keys) {
+            if (current === undefined || current === null) return defaultValue;
+            current = current[key];
+        }
+
+        // Agar result 0 bhi hai, tab bhi return karein
+        return (current !== undefined && current !== null) ? current : defaultValue;
     };
 
     // --- FEE LOGIC ---
