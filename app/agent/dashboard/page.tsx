@@ -5,16 +5,13 @@ import {
     School,
     GraduationCap,
     LogOut,
-    Clock,
-    ChevronRight,
-    TrendingUp,
     FileText,
     Printer,
     X,
     Loader2,
     Globe,
     DollarSign,
-    Filter
+    Eye
 } from 'lucide-react';
 import axios from 'axios';
 import { useReactToPrint } from 'react-to-print';
@@ -28,20 +25,15 @@ export default function AgentDashboard() {
     const abortControllerRef = useRef<AbortController | null>(null);
 
     const [agentName, setAgentName] = useState("Agent");
-    const [stats, setStats] = useState({ total: 0, thisMonth: 0 });
     const [recentForms, setRecentForms] = useState<any[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(true);
 
     const [filterType, setFilterType] = useState<'All' | 'EducationZone' | 'DIB' | 'StudyAbroad'>('All');
     const [dateFilter, setDateFilter] = useState<'All' | 'Day' | 'Week' | 'Month'>('All');
-    const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 5;
 
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // Calculated Stats & Filters
     const filteredAndComputed = useMemo(() => {
         const now = new Date();
         const filtered = recentForms.filter((f: any) => {
@@ -87,7 +79,6 @@ export default function AgentDashboard() {
             ]);
             const processedStudy = (studyRes.data.data || []).map((item: any) => ({ ...item, formType: 'Study Abroad' }));
             setRecentForms([...(res.data.recentForms || []), ...processedStudy]);
-            setStats(res.data.stats || { total: 0, thisMonth: 0 });
         } catch (err: any) { if (err.response?.status === 401) handleLogout(true); } finally { setLoading(false); }
     }, []);
 
@@ -100,7 +91,11 @@ export default function AgentDashboard() {
         return () => abortControllerRef.current?.abort();
     }, [fetchDashboardData]);
 
-    const handlePrint = useReactToPrint({ contentRef: componentRef });
+    const handlePrint = useReactToPrint({
+        contentRef: componentRef,
+        documentTitle: `Admission-Form-${selectedStudent?.studentName || 'Student'}`,
+    });
+
     const handleLogout = (auto = false) => {
         if (auto || confirm("System se logout karna chahte hain?")) {
             localStorage.clear();
@@ -128,7 +123,7 @@ export default function AgentDashboard() {
                         <StatCard icon={<FileText size={28} />} label="Total Apps" value={filteredAndComputed.filtered.length} color="orange" />
                         <StatCard icon={<DollarSign size={28} />} label="Commission" value={`PKR ${filteredAndComputed.totalCommission}`} color="emerald" />
                         <StatCard icon={<Globe size={28} />} label="Study Abroad" value={filteredAndComputed.studyAbroadCount} color="blue" />
-                        <StatCard icon={<School size={28} />} label="" value={filteredAndComputed.localFormsCount} color="indigo" />
+                        <StatCard icon={<School size={28} />} label="GED" value={filteredAndComputed.localFormsCount} color="indigo" />
                     </div>
                 </section>
 
@@ -161,10 +156,18 @@ export default function AgentDashboard() {
                             <div className="p-4 space-y-3 flex-1">
                                 {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin" size={40} /></div> :
                                     filteredAndComputed.filtered.map((form: any) => (
-                                        <div key={form._id} onClick={() => { setSelectedStudent(form); setIsModalOpen(true); }} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl cursor-pointer hover:bg-slate-100 transition-all">
-                                            <div>
-                                                <p className="font-black text-lg uppercase">{form.studentName || form.studentDetails?.firstName}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold uppercase">{form.formType}</p>
+                                        <div key={form._id} onClick={() => { setSelectedStudent(form); setIsModalOpen(true); }} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl cursor-pointer hover:bg-slate-100 transition-all shadow-sm border border-transparent hover:border-slate-200">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-3 rounded-2xl ${form.formType === 'Study Abroad' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                    {form.formType === 'Study Abroad' ? <Globe size={20} /> : <FileText size={20} />}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-lg uppercase leading-tight">{form.studentName || form.studentDetails?.firstName || "N/A"}</p>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{form.formType}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {form.formType === 'Study Abroad' ? <Eye size={20} className="text-slate-400" /> : <Printer size={20} className="text-slate-400" />}
                                             </div>
                                         </div>
                                     ))}
@@ -176,12 +179,46 @@ export default function AgentDashboard() {
 
             {isModalOpen && selectedStudent && (
                 <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-slate-200 w-full max-w-5xl h-[95vh] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl">
-                        <div className="bg-white px-8 py-6 flex justify-between items-center shadow-lg">
-                            <h2 className="text-xl font-black uppercase">Preview Application</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="p-3 bg-slate-100 rounded-2xl"><X size={24} /></button>
+                    <div className="bg-slate-200 w-full max-w-5xl h-[95vh] rounded-[3rem] overflow-hidden flex flex-col shadow-2xl border border-white/20">
+                        <div className="bg-white px-8 py-6 flex justify-between items-center shadow-lg border-b border-slate-100">
+                            <div>
+                                <h2 className="text-xl font-black uppercase text-slate-800">Preview Application</h2>
+                                <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{selectedStudent.formType}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {/* Print Button is now conditioned for Local forms ONLY as per requirements */}
+                                {!(selectedStudent.formType || "").toLowerCase().includes('study') && (
+                                    <button
+                                        onClick={() => setTimeout(() => handlePrint(), 300)}
+                                        className="p-3 bg-blue-600 text-white rounded-2xl flex items-center gap-2 font-black text-xs uppercase shadow-lg shadow-blue-200 hover:scale-105 active:scale-95 transition-all"
+                                    >
+                                        <Printer size={18} /> Print Form
+                                    </button>
+                                )}
+                                <button onClick={() => setIsModalOpen(false)} className="p-3 bg-slate-100 text-slate-500 rounded-2xl hover:bg-red-50 hover:text-red-500 transition-colors">
+                                    <X size={24} />
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-8"><AdmissionForm ref={componentRef} data={selectedStudent} type={selectedStudent.formType} /></div>
+                        <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
+                            {selectedStudent.formType === 'Study Abroad' ? (
+                                <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-slate-200 max-w-3xl mx-auto w-full">
+                                    <div className="border-b pb-6 mb-6">
+                                        <h3 className="text-2xl font-black text-slate-900 uppercase">Study Abroad Details</h3>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-8">
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Student Name</label><p className="font-bold text-slate-800">{selectedStudent.studentName || "N/A"}</p></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Passport No</label><p className="font-bold text-slate-800">{selectedStudent.passportNo || 'N/A'}</p></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Desired Country</label><p className="font-bold text-blue-600 underline">{selectedStudent.country || 'N/A'}</p></div>
+                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Education Level</label><p className="font-bold text-slate-800">{selectedStudent.lastQualification || 'N/A'}</p></div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div ref={componentRef} className="print-container">
+                                    <AdmissionForm data={selectedStudent} type={selectedStudent.formType} />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
