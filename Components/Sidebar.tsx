@@ -15,6 +15,7 @@ import {
     BookOpenCheck,
     UserPlus,
     CalendarCheck,
+    Activity,
     Globe // Naya icon Study Abroad ke liye
 } from 'lucide-react';
 
@@ -40,6 +41,9 @@ export default function Sidebar() {
         { name: 'Faculty Directory', path: '/admin/teacher', icon: <GraduationCap size={20} /> },
         { name: 'All Student Forms', path: '/admin/forms', icon: <FileText size={20} /> },
         { name: 'Exam Management', path: '/admin/exams', icon: <BookOpenCheck size={20} /> },
+        { name: 'Daily Progress', path: '/admin/daily-progress', icon: <Activity size={20} /> },
+
+        // Agent Menu mein add karein (taake wo apni progress submit kar sakein)
     ];
 
     // --- AGENT MENU CONFIGURATION ---
@@ -51,6 +55,11 @@ export default function Sidebar() {
         { name: 'Attendance Record', path: '/admin/attendance', icon: <CalendarCheck size={20} /> },
         { name: 'Exam Booking', path: '/agent/exam-booking', icon: <BookOpenCheck size={20} /> },
         { name: 'My Submissions', path: '/agent/my-forms', icon: <ClipboardList size={20} /> },
+        // Admin Menu mein add karein
+        { name: 'Daily Progress', path: '/admin/daily-progress', icon: <Activity size={20} /> },
+
+        // Agent Menu mein add karein (taake wo apni progress submit kar sakein)
+        { name: 'Submit Progress', path: '/agent/daily-progress', icon: <Activity size={20} /> },
     ];
 
     const menuItems = user?.role === 'admin' ? adminMenu : agentMenu;
