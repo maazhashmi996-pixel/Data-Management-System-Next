@@ -53,7 +53,7 @@ export default function Sidebar() {
         { name: 'New Admission', path: '/agent/new-form', icon: <PlusCircle size={20} /> },
         { name: 'Daily Visitors', path: '/admin/visitors', icon: <UserPlus size={20} /> },
         { name: 'Attendance Record', path: '/admin/attendance', icon: <CalendarCheck size={20} /> },
-        { name: 'Exam Booking', path: '/agent/exam-booking', icon: <BookOpenCheck size={20} /> },
+        { name: 'Exam Booking', path: '/admin/exams', icon: <BookOpenCheck size={20} /> },
         { name: 'My Submissions', path: '/agent/my-forms', icon: <ClipboardList size={20} /> },
         // Admin Menu mein add karein
         { name: 'Daily Progress', path: '/admin/daily-progress', icon: <Activity size={20} /> },
