@@ -40,7 +40,7 @@ export default function ExamManagement() {
     const fetchExams = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`${API_BASE_URL}/agent/exams`);
+            const response = await axios.get(`${API_BASE_URL}/admin/exams`);
             setExams(response.data);
         } catch (error) {
             console.error("Error fetching exams:", error);
@@ -76,7 +76,7 @@ export default function ExamManagement() {
                 status: "Pending"
             };
 
-            const response = await axios.post(`${API_BASE_URL}/agent/exams`, payload);
+            const response = await axios.post(`${API_BASE_URL}/admin/exams`, payload);
             setExams([response.data, ...exams]);
             setIsModalOpen(false);
             setNewBooking({ studentName: '', fatherName: '', examFees: '', selectedSubjects: [] });
@@ -88,7 +88,7 @@ export default function ExamManagement() {
     // --- 3. Update Status in Database ---
     const updateStatus = async (id: string, status: string) => {
         try {
-            await axios.patch(`${API_BASE_URL}/agent/exams/${id}`, { status });
+            await axios.patch(`${API_BASE_URL}/admin/exams/${id}`, { status });
             setExams(exams.map(ex => ex._id === id ? { ...ex, status } : ex));
         } catch (error) {
             alert("Error updating status");
@@ -99,7 +99,7 @@ export default function ExamManagement() {
     const deleteExam = async (id: string) => {
         if (!window.confirm("Are you sure you want to delete this record?")) return;
         try {
-            await axios.delete(`${API_BASE_URL}/agent/exams/${id}`);
+            await axios.delete(`${API_BASE_URL}/admin/exams/${id}`);
             setExams(exams.filter(ex => ex._id !== id));
         } catch (error) {
             alert("Failed to delete record");
