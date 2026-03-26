@@ -1,7 +1,11 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Globe, ArrowRight, CheckCircle2, MapPin, Phone, BookOpen, DollarSign, Users, Loader2 } from 'lucide-react';
+import {
+    User, Globe, ArrowRight, CheckCircle2,
+    MapPin, Phone, BookOpen, DollarSign,
+    Users, Loader2
+} from 'lucide-react';
 import api from '@/lib/axios';
 
 export default function ProcessApplication() {
@@ -16,7 +20,6 @@ export default function ProcessApplication() {
             gender: '', addressLine1: '', addressLine2: '', city: '', state: '', pincode: '',
             isAhmadi: 'No', previousVisaRefusal: 'No', handlerEmail: '', handlerContact: ''
         },
-
         courseDetails: {
             universityCountry: '', passportCountry: '', state: '', intake: '',
             university: '', courseName: '', courseType: 'Undergraduate'
@@ -60,11 +63,22 @@ export default function ProcessApplication() {
         e.preventDefault();
         setLoading(true);
         try {
-            await api.post('/study-abroad/submit', formData);
-            alert("Application Submitted Successfully!");
-            router.push('/agent/study-abroad');
-        } catch (error) {
-            alert("Error submitting application");
+            const response = await api.post('/study-abroad/submit', formData);
+
+            if (response.status === 200 || response.status === 201) {
+                // Pehle hum window alert dikhayenge confirm karne ke liye
+                alert("APPLICATION SUBMITTED SUCCESSFULLY! Redirecting to Dashboard...");
+
+                // Dashboard par redirect - Aapka route '/agent' hai ya '/agent/dashboard' 
+                // Summary ke mutabiq '/agent' main dashboard hai
+                router.push('/agent/dashboard');
+
+                // Optional: Refresh the page once arrived to ensure latest stats
+                router.refresh();
+            }
+        } catch (error: any) {
+            console.error("Submission error:", error);
+            alert(error.response?.data?.message || "Error submitting application. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -76,9 +90,6 @@ export default function ProcessApplication() {
     return (
         <div className="p-8 bg-slate-50 min-h-screen">
             <div className="max-w-5xl mx-auto space-y-8">
-
-
-
                 {/* Form Section */}
                 <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
                     <div className="bg-slate-900 p-10 text-white flex justify-between items-center">
@@ -107,7 +118,7 @@ export default function ProcessApplication() {
                                 <div><label className={labelStyle}>First Name *</label><input required className={inputStyle} onChange={e => setFormData({ ...formData, studentDetails: { ...formData.studentDetails, firstName: e.target.value } })} value={formData.studentDetails.firstName || ''} /></div>
                                 <div><label className={labelStyle}>Last Name</label><input className={inputStyle} onChange={e => setFormData({ ...formData, studentDetails: { ...formData.studentDetails, lastName: e.target.value } })} value={formData.studentDetails.lastName || ''} /></div>
                                 <div><label className={labelStyle}>Email *</label><input required type="email" className={inputStyle} onChange={e => setFormData({ ...formData, studentDetails: { ...formData.studentDetails, email: e.target.value } })} value={formData.studentDetails.email || ''} /></div>
-                                <div><label className={labelStyle}>previousVisaRefusal *</label><input required type="text" className={inputStyle} onChange={e => setFormData({ ...formData, studentDetails: { ...formData.studentDetails, previousVisaRefusal: e.target.value } })} value={formData.studentDetails.previousVisaRefusal || ''} /></div>
+                                <div><label className={labelStyle}>Visa Refusal History *</label><input required type="text" className={inputStyle} onChange={e => setFormData({ ...formData, studentDetails: { ...formData.studentDetails, previousVisaRefusal: e.target.value } })} value={formData.studentDetails.previousVisaRefusal || ''} /></div>
                                 <div><label className={labelStyle}>WhatsApp *</label><input required className={inputStyle} onChange={e => setFormData({ ...formData, studentDetails: { ...formData.studentDetails, whatsapp: e.target.value } })} value={formData.studentDetails.whatsapp || ''} /></div>
                                 <div><label className={labelStyle}>Gender</label><select className={inputStyle} onChange={e => setFormData({ ...formData, studentDetails: { ...formData.studentDetails, gender: e.target.value } })} value={formData.studentDetails.gender || ''}><option value="">Select</option><option value="Male">Male</option><option value="Female">Female</option></select></div>
                             </div>
@@ -157,12 +168,12 @@ export default function ProcessApplication() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl uppercase tracking-[0.4em] text-sm hover:bg-black transition-all flex items-center justify-center gap-3"
+                            className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl uppercase tracking-[0.4em] text-sm hover:bg-black transition-all flex items-center justify-center gap-3 shadow-xl active:scale-[0.98]"
                         >
                             {loading ? (
                                 <>
                                     <Loader2 className="animate-spin" size={20} />
-                                    FINALIZE REGISTRATION
+                                    PROCESSING CASE...
                                 </>
                             ) : "FINALIZE REGISTRATION"}
                         </button>
