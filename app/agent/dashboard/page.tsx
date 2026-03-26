@@ -24,7 +24,9 @@ export default function AgentDashboard() {
     const componentRef = useRef<HTMLDivElement>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
+    // Production States
     const [agentName, setAgentName] = useState("Agent");
+    const [isMounted, setIsMounted] = useState(false); // New: To fix hydration
     const [recentForms, setRecentForms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -33,6 +35,15 @@ export default function AgentDashboard() {
 
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleLogout = useCallback((auto = false) => {
+        if (typeof window !== 'undefined') {
+            if (auto || confirm("System se logout karna chahte hain?")) {
+                localStorage.clear();
+                router.replace('/login');
+            }
+        }
+    }, [router]);
 
     const filteredAndComputed = useMemo(() => {
         const now = new Date();
@@ -80,29 +91,36 @@ export default function AgentDashboard() {
 
             const processedStudy = (studyRes.data.data || []).map((item: any) => ({ ...item, formType: 'Study Abroad' }));
             setRecentForms([...(res.data.recentForms || []), ...processedStudy]);
-        } catch (err: any) { if (err.response?.status === 401) handleLogout(true); } finally { setLoading(false); }
-    }, []);
+        } catch (err: any) {
+            if (err.response?.status === 401) handleLogout(true);
+        } finally {
+            setLoading(false);
+        }
+    }, [handleLogout]);
 
     useEffect(() => {
+        setIsMounted(true); // Mark as mounted for production safety
         const userData = localStorage.getItem('user');
         if (userData) {
-            setAgentName(JSON.parse(userData).name || "Agent");
-            fetchDashboardData();
-        } else router.push('/login');
+            try {
+                setAgentName(JSON.parse(userData).name || "Agent");
+                fetchDashboardData();
+            } catch (e) {
+                console.error("User data parse error");
+            }
+        } else {
+            router.push('/login');
+        }
         return () => abortControllerRef.current?.abort();
-    }, [fetchDashboardData]);
+    }, [fetchDashboardData, router]);
 
     const handlePrint = useReactToPrint({
         contentRef: componentRef,
         documentTitle: `Admission-Form-${selectedStudent?.studentName || 'Student'}`,
     });
 
-    const handleLogout = (auto = false) => {
-        if (auto || confirm("System se logout karna chahte hain?")) {
-            localStorage.clear();
-            router.replace('/login');
-        }
-    };
+    // Production Guard: Prevent hydration mismatch
+    if (!isMounted) return null;
 
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans">
@@ -111,9 +129,16 @@ export default function AgentDashboard() {
                     <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black shadow-lg">EZ</div>
                     <span className="font-black text-slate-800 tracking-tighter uppercase hidden md:block">Enrollment Portal</span>
                 </div>
+                {/* Agent Name and Logout UI Section - Fixed for Production */}
                 <div className="flex items-center gap-4">
                     <span className="font-black text-blue-600 text-sm uppercase">{agentName}</span>
-                    <button onClick={() => handleLogout(false)} className="p-2.5 text-slate-400 hover:text-red-600 rounded-xl"><LogOut size={20} /></button>
+                    <button
+                        onClick={() => handleLogout(false)}
+                        className="p-2.5 text-slate-400 hover:text-red-600 rounded-xl transition-colors"
+                        aria-label="Logout"
+                    >
+                        <LogOut size={20} />
+                    </button>
                 </div>
             </nav>
 
@@ -129,7 +154,7 @@ export default function AgentDashboard() {
                 </section>
 
                 <div className="flex gap-4 mb-6">
-                    <select className="bg-white p-3 rounded-xl border font-bold text-sm" onChange={(e: any) => setDateFilter(e.target.value)}>
+                    <select className="bg-white p-3 rounded-xl border font-bold text-sm outline-none" onChange={(e: any) => setDateFilter(e.target.value)}>
                         <option value="All">All Time</option>
                         <option value="Day">Today</option>
                         <option value="Week">This Week</option>
@@ -150,12 +175,12 @@ export default function AgentDashboard() {
                                 <h2 className="font-black text-slate-800 text-xl uppercase">Recent Activity</h2>
                                 <div className="flex gap-2 bg-slate-100 p-1 rounded-xl">
                                     {(['All', 'EducationZone', 'DIB', 'StudyAbroad'] as const).map((t) => (
-                                        <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase ${filterType === t ? 'bg-white shadow-sm' : 'text-slate-400'}`}>{t}</button>
+                                        <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${filterType === t ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>{t}</button>
                                     ))}
                                 </div>
                             </div>
                             <div className="p-4 space-y-3 flex-1">
-                                {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin" size={40} /></div> :
+                                {loading ? <div className="flex justify-center py-20"><Loader2 className="animate-spin text-blue-600" size={40} /></div> :
                                     filteredAndComputed.filtered.map((form: any) => (
                                         <div key={form._id} onClick={() => { setSelectedStudent(form); setIsModalOpen(true); }} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl cursor-pointer hover:bg-slate-100 transition-all shadow-sm border border-transparent hover:border-slate-200">
                                             <div className="flex items-center gap-4">
@@ -203,9 +228,7 @@ export default function AgentDashboard() {
                         <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
                             {selectedStudent.formType === 'Study Abroad' ? (
                                 <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-slate-200 max-w-3xl mx-auto w-full relative overflow-hidden">
-                                    {/* Glassmorphism Background Decoration */}
                                     <Globe className="absolute -right-10 -bottom-10 text-slate-100 w-64 h-64 -z-0 opacity-50" />
-
                                     <div className="relative z-10">
                                         <div className="border-b-2 border-slate-100 pb-6 mb-8 flex justify-between items-end">
                                             <div>
@@ -214,36 +237,38 @@ export default function AgentDashboard() {
                                             </div>
                                             <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl text-[10px] font-black uppercase">Verified</div>
                                         </div>
-
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Student Name</label>
                                                 <p className="text-xl font-bold text-slate-800 uppercase">
                                                     {selectedStudent.studentName || `${selectedStudent.studentDetails?.firstName || ""} ${selectedStudent.studentDetails?.lastName || ""}`.trim() || "N/A"}
-                                                </p>                                            </div>
+                                                </p>
+                                            </div>
                                             <div className="space-y-1">
-                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Contact Numnber</label>
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Contact Number</label>
                                                 <p className="text-xl font-bold text-slate-800 uppercase">
-                                                    {selectedStudent.whatsapp || `${selectedStudent.studentDetails?.whatsapp || ""} ${selectedStudent.studentDetails?.whatsapp || ""}`.trim() || "N/A"}
-                                                </p>                                            </div>
+                                                    {selectedStudent.whatsapp || selectedStudent.studentDetails?.whatsapp || "N/A"}
+                                                </p>
+                                            </div>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Passport No</label>
                                                 <p className="text-xl font-bold text-slate-800 uppercase tracking-tighter">
                                                     {selectedStudent.passportNo || selectedStudent.studentDetails?.passportNo || 'N/A'}
-                                                </p>                                            </div>
+                                                </p>
+                                            </div>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Desired Country</label>
                                                 <p className="text-xl font-bold text-blue-600 underline decoration-2 underline-offset-4">
                                                     {selectedStudent.country || selectedStudent.courseDetails?.universityCountry || 'N/A'}
-                                                </p>                                            </div>
+                                                </p>
+                                            </div>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Course Type</label>
                                                 <p className="text-xl font-bold text-slate-800">
                                                     {selectedStudent.lastQualification || selectedStudent.courseDetails?.courseType || 'N/A'}
-                                                </p>                                            </div>
+                                                </p>
+                                            </div>
                                         </div>
-
-                                        {/* Additional spacing for clarity */}
                                         <div className="mt-12 pt-8 border-t border-slate-50 flex gap-4">
                                             <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                                                 <span className="text-[9px] font-black text-slate-400 uppercase block mb-1">Application ID</span>
@@ -275,11 +300,19 @@ export default function AgentDashboard() {
 }
 
 function StatCard({ icon, label, value, color }: any) {
-    const colors: any = { orange: "bg-orange-50 text-orange-600", emerald: "bg-emerald-50 text-emerald-600", blue: "bg-blue-50 text-blue-600", indigo: "bg-indigo-50 text-indigo-600" };
+    const colors: any = {
+        orange: "bg-orange-50 text-orange-600",
+        emerald: "bg-emerald-50 text-emerald-600",
+        blue: "bg-blue-50 text-blue-600",
+        indigo: "bg-indigo-50 text-indigo-600"
+    };
     return (
         <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-5">
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${colors[color]}`}>{icon}</div>
-            <div><p className="text-xs font-black text-slate-400 uppercase tracking-widest">{label}</p><p className="text-2xl font-black text-slate-900">{value}</p></div>
+            <div>
+                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{label}</p>
+                <p className="text-2xl font-black text-slate-900">{value}</p>
+            </div>
         </div>
     );
 }
