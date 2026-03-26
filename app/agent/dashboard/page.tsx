@@ -77,6 +77,7 @@ export default function AgentDashboard() {
                 axios.get(`${API_BASE_URL}/agent/stats`, { headers: { Authorization: `Bearer ${token}` } }),
                 axios.get(`${API_BASE_URL}/study-abroad/all`, { headers: { Authorization: `Bearer ${token}` } })
             ]);
+
             const processedStudy = (studyRes.data.data || []).map((item: any) => ({ ...item, formType: 'Study Abroad' }));
             setRecentForms([...(res.data.recentForms || []), ...processedStudy]);
         } catch (err: any) { if (err.response?.status === 401) handleLogout(true); } finally { setLoading(false); }
@@ -186,7 +187,6 @@ export default function AgentDashboard() {
                                 <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">{selectedStudent.formType}</p>
                             </div>
                             <div className="flex items-center gap-2">
-                                {/* Print Button is now conditioned for Local forms ONLY as per requirements */}
                                 {!(selectedStudent.formType || "").toLowerCase().includes('study') && (
                                     <button
                                         onClick={() => setTimeout(() => handlePrint(), 300)}
@@ -202,20 +202,68 @@ export default function AgentDashboard() {
                         </div>
                         <div className="flex-1 overflow-y-auto p-8 bg-slate-50">
                             {selectedStudent.formType === 'Study Abroad' ? (
-                                <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-slate-200 max-w-3xl mx-auto w-full">
-                                    <div className="border-b pb-6 mb-6">
-                                        <h3 className="text-2xl font-black text-slate-900 uppercase">Study Abroad Details</h3>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-8">
-                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Student Name</label><p className="font-bold text-slate-800">{selectedStudent.studentName || "N/A"}</p></div>
-                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Passport No</label><p className="font-bold text-slate-800">{selectedStudent.passportNo || 'N/A'}</p></div>
-                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Desired Country</label><p className="font-bold text-blue-600 underline">{selectedStudent.country || 'N/A'}</p></div>
-                                        <div><label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Education Level</label><p className="font-bold text-slate-800">{selectedStudent.lastQualification || 'N/A'}</p></div>
+                                <div className="bg-white rounded-[2rem] p-10 shadow-sm border border-slate-200 max-w-3xl mx-auto w-full relative overflow-hidden">
+                                    {/* Glassmorphism Background Decoration */}
+                                    <Globe className="absolute -right-10 -bottom-10 text-slate-100 w-64 h-64 -z-0 opacity-50" />
+
+                                    <div className="relative z-10">
+                                        <div className="border-b-2 border-slate-100 pb-6 mb-8 flex justify-between items-end">
+                                            <div>
+                                                <h3 className="text-3xl font-black text-slate-900 uppercase tracking-tighter">Study Abroad Details</h3>
+                                                <p className="text-blue-600 font-bold text-xs uppercase tracking-widest">International Admission File</p>
+                                            </div>
+                                            <div className="bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl text-[10px] font-black uppercase">Verified</div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Student Name</label>
+                                                <p className="text-xl font-bold text-slate-800 uppercase">
+                                                    {selectedStudent.studentName || `${selectedStudent.studentDetails?.firstName || ""} ${selectedStudent.studentDetails?.lastName || ""}`.trim() || "N/A"}
+                                                </p>                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Contact Numnber</label>
+                                                <p className="text-xl font-bold text-slate-800 uppercase">
+                                                    {selectedStudent.whatsapp || `${selectedStudent.studentDetails?.whatsapp || ""} ${selectedStudent.studentDetails?.whatsapp || ""}`.trim() || "N/A"}
+                                                </p>                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Passport No</label>
+                                                <p className="text-xl font-bold text-slate-800 uppercase tracking-tighter">
+                                                    {selectedStudent.passportNo || selectedStudent.studentDetails?.passportNo || 'N/A'}
+                                                </p>                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Desired Country</label>
+                                                <p className="text-xl font-bold text-blue-600 underline decoration-2 underline-offset-4">
+                                                    {selectedStudent.country || selectedStudent.courseDetails?.universityCountry || 'N/A'}
+                                                </p>                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Course Type</label>
+                                                <p className="text-xl font-bold text-slate-800">
+                                                    {selectedStudent.lastQualification || selectedStudent.courseDetails?.courseType || 'N/A'}
+                                                </p>                                            </div>
+                                        </div>
+
+                                        {/* Additional spacing for clarity */}
+                                        <div className="mt-12 pt-8 border-t border-slate-50 flex gap-4">
+                                            <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase block mb-1">Application ID</span>
+                                                <span className="text-xs font-mono font-bold text-slate-500">{selectedStudent._id}</span>
+                                            </div>
+                                            <div className="flex-1 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase block mb-1">Status</span>
+                                                <span className="text-xs font-bold text-emerald-600 uppercase">Received</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
-                                <div ref={componentRef} className="print-container">
-                                    <AdmissionForm data={selectedStudent} type={selectedStudent.formType} />
+                                <div className="flex justify-center overflow-x-auto min-w-fit">
+                                    <div ref={componentRef} className="print-container shadow-2xl bg-white rounded-sm">
+                                        <AdmissionForm
+                                            data={selectedStudent}
+                                            type={selectedStudent.formType?.includes('DIB') ? 'DIB Education System' : 'Education Zone'}
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </div>

@@ -20,28 +20,48 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
 
     const getVal = (path: string, defaultValue = '________________') => {
         const keys = path.split('.');
-        let current = data;
+        let current: any = data;
 
         for (const key of keys) {
-            if (current === undefined || current === null) return defaultValue;
+            if (current === undefined || current === null) {
+                current = undefined;
+                break;
+            }
             current = current[key];
         }
 
-        // Agar result 0 bhi hai, tab bhi return karein
-        return (current !== undefined && current !== null) ? current : defaultValue;
+        // Agar value mil gayi hai aur empty string nahi hai
+        if (current !== undefined && current !== null && current !== '') {
+            return current;
+        }
+
+        return defaultValue;
     };
 
     // --- FEE LOGIC ---
-    const totalFee = Number(data?.officeUse?.totalFee) || 0;
-    const registrationFee = Number(data?.officeUse?.registrationFee) || 0;
-    const totalPaidFromHistory = data?.feeHistory?.reduce((sum: number, item: any) => sum + (Number(item.amountPaid) || 0), 0) || 0;
+    const totalFee = Number(getVal('officeUse.totalFee', '0')) || Number(data?.totalFee) || 0;
 
-    const grandTotalPaid = registrationFee + totalPaidFromHistory;
+    const registrationFee = Number(getVal('officeUse.registrationFee', '0'))
+        || Number(data?.registrationFee)
+        || Number(data?.admissionPaid)
+        || 0;
+
+    // Fee History se total paid amount nikalna (Real-time calculation)
+    const totalPaidFromHistory = data?.feeHistory?.reduce((sum: number, item: any) =>
+        sum + (Number(item.amountPaid || item.amount) || 0), 0) || 0;
+
+    const directInstallmentsPaid = Number(getVal('officeUse.installmentsPaid', '0'))
+        || Number(data?.installmentsPaid)
+        || 0;
+
+    const finalInstallmentsPaid = totalPaidFromHistory > 0 ? totalPaidFromHistory : directInstallmentsPaid;
+
+    const grandTotalPaid = registrationFee + finalInstallmentsPaid;
     const remainingBalance = totalFee - grandTotalPaid;
 
-    // --- DUE DATES LOGIC ---
-    const pendingInstallments = data?.installments?.filter((inst: any) => inst.status === 'pending') || [];
 
+    const installmentsArray = data?.officeUse?.installments || data?.installments || [];
+    const pendingInstallments = installmentsArray.filter((inst: any) => inst.status === 'pending') || [];
     return (
         <div
             ref={ref}
@@ -279,9 +299,54 @@ const AdmissionForm = forwardRef<HTMLDivElement, FormProps>(({ data, type }, ref
                 </div>
                 <p className="text-[7px] text-gray-400 mt-2 text-center uppercase tracking-widest">Note: This is a computer generated acknowledgement slip.</p>
             </div>
+            {/* --- STUDY ABROAD DYNAMIC SECTION --- */}
+            {
+                getVal('purpose') === 'Study Abroad' && (
+                    <div className="relative z-10 mb-8 p-6 border-4 rounded-[2rem] bg-blue-50/50" style={{ borderColor: '#2563eb' }}>
+                        <div className="absolute -top-4 left-8 bg-white px-6 border-2 border-blue-600 rounded-full py-1 text-[10px] font-black italic uppercase tracking-widest text-blue-600 shadow-sm">
+                            Study Abroad Details
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-x-12 gap-y-6 mt-2 font-black uppercase text-[11px]">
+                            <div className="space-y-4">
+                                <div className="flex flex-col border-b border-blue-200 pb-1">
+                                    <span className="text-[8px] text-gray-400">Passport Number:</span>
+                                    <span className="text-md text-black font-mono">
+                                        {getVal('studentDetails.passportNo') || getVal('passportNo')}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col border-b border-blue-200 pb-1">
+                                    <span className="text-[8px] text-gray-400">Desired Country:</span>
+                                    <span className="text-md text-blue-700 font-bold">
+                                        {getVal('courseDetails.universityCountry') || getVal('desiredCountry')}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex flex-col border-b border-blue-200 pb-1">
+                                    <span className="text-[8px] text-gray-400">Education Level:</span>
+                                    <span className="text-md text-black">
+                                        {getVal('courseDetails.courseType') || getVal('educationLevel', 'Undergraduate')}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col border-b border-blue-200 pb-1">
+                                    <span className="text-[8px] text-gray-400">University / Intake:</span>
+                                    <span className="text-md text-black italic">
+                                        {getVal('courseDetails.university', 'TBA')} ({getVal('courseDetails.intake', 'N/A')})
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div>
+
     );
+
 });
+
 
 AdmissionForm.displayName = "AdmissionForm";
 export default AdmissionForm;
