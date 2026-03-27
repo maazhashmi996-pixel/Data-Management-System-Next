@@ -54,7 +54,6 @@ export default function Sidebar() {
         { name: 'Attendance Record', path: '/admin/attendance', icon: <CalendarCheck size={20} /> },
         { name: 'Exam Booking', path: '/admin/exams', icon: <BookOpenCheck size={20} /> },
         { name: 'My Submissions', path: '/agent/my-forms', icon: <ClipboardList size={20} /> },
-        // Admin Menu mein add karein
         { name: 'Daily Progress', path: '/admin/daily-progress', icon: <Activity size={20} /> },
 
         // Agent Menu mein add karein (taake wo apni progress submit kar sakein)
