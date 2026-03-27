@@ -43,7 +43,6 @@ export default function Sidebar() {
         { name: 'Exam Management', path: '/admin/exams', icon: <BookOpenCheck size={20} /> },
         { name: 'Daily Progress', path: '/admin/daily-progress', icon: <Activity size={20} /> },
 
-        // Agent Menu mein add karein (taake wo apni progress submit kar sakein)
     ];
 
     // --- AGENT MENU CONFIGURATION ---
