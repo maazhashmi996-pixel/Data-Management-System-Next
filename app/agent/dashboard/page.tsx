@@ -119,7 +119,6 @@ export default function AgentDashboard() {
         documentTitle: `Admission-Form-${selectedStudent?.studentName || 'Student'}`,
     });
 
-    // Production Guard: Prevent hydration mismatch
     if (!isMounted) return null;
 
     return (
