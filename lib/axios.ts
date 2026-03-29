@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// Debugging ke liye: console mein check karein ke URL sahi aa raha hai ya nahi
 // Railway URL ke aakhir mein /api lagana zaroori hai kyunki aapke backend routes wahin se shuru hote hain
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://data-management-system-node-production.up.railway.app/api';
 
